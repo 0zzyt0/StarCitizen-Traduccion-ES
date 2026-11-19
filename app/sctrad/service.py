@@ -211,7 +211,7 @@ class UpdateService:
         available = manifest.version if (manifest and entry) else None
         compat = check_compat(gi.game_version, entry.game_versions) if entry else check_compat(gi.game_version, [])
         try:
-            insp = self.installer.inspect(gi)
+            insp = self.installer.inspect(gi, entry.sha256 if entry else None)
         except SCTradError:
             insp = None
         held = bool(rec and rec.get("hold_until_newer_than") and available

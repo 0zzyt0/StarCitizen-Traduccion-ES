@@ -287,6 +287,19 @@ def test_foreign_file_needs_confirmation(tmp_path, cfg):
     assert g.read_bytes() == b"otra traduccion"
 
 
+def test_identical_manual_copy_is_adopted(tmp_path, cfg):
+    live = make_game(tmp_path / "game", "LIVE")
+    g = live / "data/Localization/spanish_(spain)/global.ini"
+    g.parent.mkdir(parents=True)
+    g.write_bytes(ini_bytes())
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes()})
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    res = svc.check()
+    assert res.statuses[0].state == ST_NOT_INSTALLED
+    _install_all(svc, res)  # sin allow_foreign: no pide confirmación
+    assert svc.check().statuses[0].state == ST_UP_TO_DATE
+
+
 def test_uninstall_restores_original_state(tmp_path, cfg):
     live = make_game(tmp_path / "game", "LIVE", user_cfg=b"r_DisplayInfo = 2\r\n")
     rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes()})

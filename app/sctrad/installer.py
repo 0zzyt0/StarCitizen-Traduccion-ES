@@ -96,13 +96,15 @@ class Installer:
         return self.data_dir / "backups" / f"{install.channel}-{h}"
 
     # ------------------------------------------------------------- inspección
-    def inspect(self, install: GameInstall) -> Inspection:
+    def inspect(self, install: GameInstall, expected_sha: str | None = None) -> Inspection:
+        """expected_sha: SHA-256 de la versión publicada. Si el archivo existente es idéntico
+        (p. ej. copiado a mano), se considera nuestro y no se pide confirmación."""
         _, gpath, cpath = self._paths(install)
         rec = self._record(install) or {}
         recorded = (rec.get("files") or {}).get(self.cfg.translation_rel_path)
         exists = gpath.is_file()
         sha = sha256_file(gpath) if exists else None
-        ours = bool(exists and recorded and sha == recorded)
+        ours = bool(exists and ((recorded and sha == recorded) or (expected_sha and sha == expected_sha)))
         cfg_exists = cpath.is_file()
         lang = get_setting(cpath.read_bytes(), "g_language") if cfg_exists else None
         return Inspection(
@@ -113,10 +115,14 @@ class Installer:
             locked=not (is_writable_now(gpath) and is_writable_now(cpath)),
         )
 
-    def describe_plan(self, install: GameInstall, version: str, touch_user_cfg: bool = True) -> list[str]:
-        i = self.inspect(install)
+    def describe_plan(self, install: GameInstall, version: str, touch_user_cfg: bool = True,
+                      expected_sha: str | None = None) -> list[str]:
+        i = self.inspect(install, expected_sha)
         lines: list[str] = []
-        if i.global_exists and i.ours:
+        if i.global_exists and expected_sha and i.global_sha == expected_sha and not i.recorded_sha:
+            lines.append(f"Ya tienes esta misma versión ({version}) copiada a mano. El gestor la registrará para "
+                         f"mantenerla actualizada:\n    {i.global_path}")
+        elif i.global_exists and i.ours:
             lines.append(f"Se reemplazará la traducción instalada por la versión {version}:\n    {i.global_path}")
         elif i.global_exists:
             lines.append("⚠ Ya hay un global.ini que NO instaló este gestor (otra traducción o un archivo "
@@ -221,7 +227,7 @@ class Installer:
         say = progress or (lambda _m: None)
         with self.op_lock:
             channel_dir, gpath, cpath = self._preflight(install)
-            insp = self.inspect(install)
+            insp = self.inspect(install, entry.sha256)
             if insp.foreign and not allow_foreign:
                 raise ForeignFileError(
                     "Hay un archivo de traducción que no instaló este gestor. Ábrelo y confirma si quieres sustituirlo."

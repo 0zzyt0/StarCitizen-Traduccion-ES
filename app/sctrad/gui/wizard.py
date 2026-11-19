@@ -225,7 +225,8 @@ class SummaryPage(QWizardPage):
         any_foreign = any_incompat = False
         for st in self.wiz.selected:
             gi = st.install
-            plan = svc.installer.describe_plan(gi, res.manifest.version, touch_user_cfg=self.wiz.touch_user_cfg)
+            plan = svc.installer.describe_plan(gi, res.manifest.version, touch_user_cfg=self.wiz.touch_user_cfg,
+                                               expected_sha=st.entry.sha256 if st.entry else None)
             comp = st.compat_label
             if st.compat == INCOMPATIBLE:
                 any_incompat = True
