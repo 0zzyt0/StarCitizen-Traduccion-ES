@@ -138,9 +138,7 @@ def build(a) -> int:
         channels[ch] = {"asset": f"global_{ch}.ini", "size": f.stat().st_size, "sha256": sha256(f),
                         "target": target, "game_versions": gv}
         for ex_id, fname in extra_sources.items():
-            if ch in sources:
-                continue  # la pantalla de carga es propia de cada canal (la de LIVE pone «LIVE»)
-            ep = root / ch / fname
+            ep = root / ch / fname  # la pantalla de carga es siempre la propia del canal (HOTFIX tiene la suya)
             ex_target = config.get("extra_targets", {}).get(ex_id)
             if ep.is_file() and ex_target:
                 name = f"{ex_id}_{ch}.png"

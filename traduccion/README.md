@@ -6,7 +6,7 @@ Sube aquí los archivos traducidos, uno por canal del juego:
 traduccion/LIVE/global.ini
 traduccion/PTU/global.ini
 traduccion/EPTU/global.ini          (opcional)
-traduccion/HOTFIX/global.ini        (opcional)
+traduccion/HOTFIX/global.ini        (no hace falta: HOTFIX usa automáticamente el de LIVE)
 traduccion/TECH-PREVIEW/global.ini  (opcional)
 ```
 

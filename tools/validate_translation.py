@@ -139,9 +139,18 @@ def validate(root: Path, config: dict, referencia: Path | None, rep: Report) -> 
             rep.error(f"validacion.json no es JSON válido: {e}", str(rules_file))
     max_bytes = int(config.get("max_payload_bytes", 200 * 1024 * 1024))
     channels_found: list[str] = []
+    sources = config.get("publish_channel_sources") or {}
     for ch in config["channels"]:
         f = root / ch / "global.ini"
         if not f.is_file():
+            for ex_id, fname in EXTRA_SOURCES.items():
+                ep = root / ch / fname
+                if ep.is_file():
+                    check_png(ep, rep)
+                    if sources.get(ch) and (root / sources[ch] / "global.ini").is_file():
+                        rep.note(f"{ch}: usa la traducción de {sources[ch]} con su propia pantalla de carga.")
+                    else:
+                        rep.note(f"{ch}: pantalla de carga preparada; se publicará cuando el canal tenga traducción.")
             continue
         label = str(f)
         channels_found.append(ch)

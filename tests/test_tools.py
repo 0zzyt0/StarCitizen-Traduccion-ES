@@ -197,5 +197,12 @@ def test_hotfix_uses_live_translation(tmp_path, monkeypatch):
     assert m.channels["HOTFIX"].sha256 == m.channels["LIVE"].sha256
     assert m.channels["HOTFIX"].game_versions == ("4.10",)
     assert m.channels["HOTFIX"].extras == () and m.channels["LIVE"].extras
-    assert (out / "global_HOTFIX.ini").read_bytes() == data
+    # Con su propia pantalla de carga, HOTFIX la usa (y sigue con el texto de LIVE).
+    (root / "HOTFIX").mkdir()
+    (root / "HOTFIX/SplashScreen.png").write_bytes(_png(800, 450) + b"")
+    assert build_release.main(["build", "--root", str(root), "--config", str(cfgp), "--out", str(out),
+                               "--releases-json", str(rel), "--force"]) == 0
+    m = parse_manifest((out / "manifest.json").read_bytes(), make_cfg())
+    assert m.channels["HOTFIX"].extras[0].asset == "splash_HOTFIX.png"
+    assert m.channels["HOTFIX"].sha256 == m.channels["LIVE"].sha256
     assert "HOTFIX (misma que LIVE)" in (tmp_path / "notas.md").read_text(encoding="utf-8")
