@@ -32,7 +32,9 @@ Traducción de la comunidad de los textos de Star Citizen al español, con un in
    - Si Windows muestra «Windows protegió su PC», pulsa **Más información → Ejecutar de todas formas**.
      Aparece porque el instalador no está firmado con un certificado de pago; el código es público en este repositorio.
 3. Al terminar se abre el asistente:
-   - Detecta tus instalaciones de Star Citizen (LIVE, PTU, EPTU, TECH-PREVIEW). Si no encuentra el juego,
+   - Detecta tus instalaciones de Star Citizen (LIVE, PTU, EPTU, HOTFIX, TECH-PREVIEW). Los canales que no tengas
+     instalados salen en gris (es normal: CIG solo abre PTU, EPTU, HOTFIX o TECH-PREVIEW en momentos concretos).
+     Si no encuentra el juego,
      pulsa **Examinar…** y elige la carpeta `StarCitizen` (por ejemplo
      `C:\Program Files\Roberts Space Industries\StarCitizen`).
    - Marca dónde quieres la traducción, revisa el resumen y pulsa **Instalar**.

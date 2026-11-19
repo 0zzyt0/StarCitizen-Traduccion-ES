@@ -60,6 +60,9 @@ def test_wizard_installs_and_manager_opens(tmp_path, cfg, monkeypatch):
         _wait(100)
         if m.result:
             break
-    assert m.tree.topLevelItemCount() == 2
+    assert m.tree.topLevelItemCount() == 5  # LIVE y PTU + EPTU, HOTFIX y TECH-PREVIEW en gris
+    from PySide6.QtCore import Qt
+    greyed = [m.tree.topLevelItem(i).text(0) for i in range(5) if not m.tree.topLevelItem(i).flags() & Qt.ItemIsEnabled]
+    assert greyed == ["EPTU", "HOTFIX", "TECH-PREVIEW"]
     assert m.hist.topLevelItemCount() >= 1
     m.close()

@@ -13,7 +13,7 @@
 | `language_folder` | Carpeta de idioma en `data\Localization` (`spanish_(spain)`). |
 | `user_cfg_settings` | Líneas que se aseguran en `user.cfg`. |
 | `user_cfg_only_if_absent` | Ajustes que solo se añaden si el jugador no los tiene (p. ej. `g_languageAudio`). |
-| `channels` | Canales del juego soportados (`LIVE`, `PTU`, `EPTU`, `TECH-PREVIEW`). |
+| `channels` | Canales del juego soportados (`LIVE`, `PTU`, `EPTU`, `HOTFIX`, `TECH-PREVIEW`). Los que no estén instalados se muestran en gris. |
 | `extra_targets` | Lista blanca de archivos extra por canal: `{"splash": "EasyAntiCheat/SplashScreen.png"}`. |
 | `launcher_process_names` | Procesos cuya apertura dispara la comprobación (`RSI Launcher.exe`). |
 | `allowed_hosts` | Únicos servidores a los que se conecta el gestor (HTTPS). |

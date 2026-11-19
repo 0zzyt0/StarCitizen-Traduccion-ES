@@ -115,8 +115,9 @@ def _windows_drives() -> list[str]:
     return [f"{d}:" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
 
 
-_LOG_PATH_RE = re.compile(r"([A-Za-z]:[\\/][^\"\r\n<>|*?]*?StarCitizen)[\\/]+(LIVE|PTU|EPTU|TECH-PREVIEW|HOTFIX)\b",
-                          re.IGNORECASE)
+def _log_path_re(channels) -> re.Pattern:
+    alts = "|".join(re.escape(c) for c in sorted(channels, key=len, reverse=True))
+    return re.compile(r"([A-Za-z]:[\\/][^\"\r\n<>|*?]*?StarCitizen)[\\/]+(" + alts + r")\b", re.IGNORECASE)
 
 
 def roots_from_launcher_logs(cfg: AppConfig) -> list[Path]:
@@ -134,7 +135,7 @@ def roots_from_launcher_logs(cfg: AppConfig) -> list[Path]:
         except OSError:
             continue
         text = text.replace("\\\\", "\\")
-        for m in _LOG_PATH_RE.finditer(text):
+        for m in _log_path_re(cfg.channels).finditer(text):
             r = Path(m.group(1))
             if r not in roots:
                 roots.append(r)

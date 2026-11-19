@@ -428,3 +428,28 @@ def test_release_client_picks_translation_when_installer_is_latest(cfg):
     assert c.latest_translation(include_prerelease=True).version == "2026.11.20.1"
     assert c.latest_app().version == "1.2.0"
     assert all("/releases/latest" not in u for u in h.urls)
+
+
+def test_channel_rows_show_missing_channels(tmp_path, cfg):
+    from sctrad.service import MissingChannel
+    make_game(tmp_path / "game", "LIVE")
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes(), "HOTFIX": ini_bytes()})
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    res = svc.check()
+    rows = svc.channel_rows(res.statuses, res.manifest)
+    assert [r.channel if isinstance(r, MissingChannel) else r.install.channel for r in rows] == \
+        ["LIVE", "PTU", "EPTU", "HOTFIX", "TECH-PREVIEW"]
+    hot = rows[3]
+    assert isinstance(hot, MissingChannel) and hot.available_version == "2026.11.19.1"
+    assert hot.path.endswith("HOTFIX")
+    # Sin juego encontrado: todos los canales en gris, sin ruta
+    empty = UpdateService(cfg, data_dir=tmp_path / "d2", http=FakeHttp({}), client=FakeClient(rel, small),
+                          game_running=lambda: False, detector=lambda: [])
+    rows = empty.channel_rows([], None)
+    assert len(rows) == 5 and all(isinstance(r, MissingChannel) and r.path is None for r in rows)
+
+
+def test_hotfix_channel_detected(tmp_path, cfg):
+    make_game(tmp_path, "HOTFIX", "4.10.0")
+    found = detect_installs(cfg, extra_roots=[tmp_path / "StarCitizen"])
+    assert [g.channel for g in found] == ["HOTFIX"]

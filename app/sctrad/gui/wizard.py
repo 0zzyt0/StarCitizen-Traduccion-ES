@@ -155,19 +155,21 @@ class InstallsPage(QWizardPage):
             if not pre:
                 first = next((st for st in res.statuses if st.entry), None)
                 pre = {first.install.key} if first else set()
-        fill_status_tree(self.tree, res.statuses, checkable=True, checked_keys=pre)
+        fill_status_tree(self.tree, self.wiz.service.channel_rows(res.statuses, res.manifest), checkable=True,
+                         checked_keys=pre)
         if not res.statuses:
             self.info.setText("No se ha encontrado Star Citizen automáticamente. Pulsa «Examinar…» y elige la "
                               "carpeta donde está instalado (por ejemplo …\\Roberts Space Industries\\StarCitizen).")
         else:
-            self.info.setText("Consejo: pasa el ratón por encima de una fila para ver la ruta completa.")
+            self.info.setText("Los canales en gris no están instalados en este PC. Pasa el ratón por encima de una "
+                              "fila para ver la ruta completa.")
         self.completeChanged.emit()
 
     def checked(self) -> list[InstallStatus]:
         keys = set()
         for i in range(self.tree.topLevelItemCount()):
             it = self.tree.topLevelItem(i)
-            if it.checkState(0) == Qt.Checked:
+            if it.data(0, Qt.UserRole) and it.checkState(0) == Qt.Checked:
                 keys.add(it.data(0, Qt.UserRole))
         return [st for st in self.wiz.result.statuses if st.install.key in keys]
 
@@ -189,7 +191,8 @@ class InstallsPage(QWizardPage):
             if gi.key not in known:
                 res.statuses.append(self.wiz.service.status_for(gi, res.manifest))
             checked.add(gi.key)
-        fill_status_tree(self.tree, res.statuses, checkable=True, checked_keys=checked)
+        fill_status_tree(self.tree, self.wiz.service.channel_rows(res.statuses, res.manifest), checkable=True,
+                         checked_keys=checked)
         self.info.setText(f"Añadida: {', '.join(g.label for g in installs)}")
         self.completeChanged.emit()
 

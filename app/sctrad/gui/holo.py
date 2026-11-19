@@ -17,7 +17,8 @@ CYAN = QColor(56, 214, 255)
 CYAN_SOFT = QColor(56, 214, 255, 60)
 VIOLET = QColor(180, 123, 255)
 CHANNEL_COLORS = {"LIVE": QColor(56, 214, 255), "PTU": QColor(180, 123, 255),
-                  "EPTU": QColor(255, 140, 220), "TECH-PREVIEW": QColor(255, 196, 92)}
+                  "EPTU": QColor(255, 140, 220), "HOTFIX": QColor(255, 122, 69),
+                  "TECH-PREVIEW": QColor(255, 196, 92)}
 
 
 # ----------------------------------------------------------------- fondo

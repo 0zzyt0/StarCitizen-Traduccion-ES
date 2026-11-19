@@ -272,7 +272,7 @@ class ManagerWindow(QMainWindow):
     def _selected(self) -> list[InstallStatus]:
         if not self.result:
             return []
-        keys = {it.data(0, Qt.UserRole) for it in self.tree.selectedItems()}
+        keys = {it.data(0, Qt.UserRole) for it in self.tree.selectedItems() if it.data(0, Qt.UserRole)}
         return [st for st in self.result.statuses if st.install.key in keys]
 
     def _update_buttons(self):
@@ -300,14 +300,13 @@ class ManagerWindow(QMainWindow):
         self._set_busy(False)
         self.result = res
         selected = {it.data(0, Qt.UserRole) for it in self.tree.selectedItems()}
-        fill_status_tree(self.tree, res.statuses)
+        fill_status_tree(self.tree, self.service.channel_rows(res.statuses, m := res.manifest))
         for i in range(self.tree.topLevelItemCount()):
             it = self.tree.topLevelItem(i)
             if it.data(0, Qt.UserRole) in selected:
                 it.setSelected(True)
-        if not selected and self.tree.topLevelItemCount():
+        if not selected and self.tree.topLevelItemCount() and self.tree.topLevelItem(0).data(0, Qt.UserRole):
             self.tree.topLevelItem(0).setSelected(True)
-        m = res.manifest
         parts = [f"Gestor {__version__}"]
         if m:
             parts.append(f"Traducción publicada {m.version} ({(m.published_at or '')[:10]})")

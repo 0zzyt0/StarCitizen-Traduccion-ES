@@ -17,7 +17,7 @@
     "g_languageAudio": "english"
   },
   "user_cfg_only_if_absent": ["g_languageAudio"],
-  "channels": ["LIVE", "PTU", "EPTU", "TECH-PREVIEW"],
+  "channels": ["LIVE", "PTU", "EPTU", "HOTFIX", "TECH-PREVIEW"],
   "extra_targets": {
     "splash": "EasyAntiCheat/SplashScreen.png"
   },

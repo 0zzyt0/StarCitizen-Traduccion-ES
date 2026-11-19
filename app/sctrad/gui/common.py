@@ -13,7 +13,7 @@ from ..elevate import can_elevate, run_elevated
 from ..errors import PermissionNeededError, SCTradError
 from ..gamepaths import COMPATIBLE, INCOMPATIBLE
 from ..service import (ST_FOREIGN, ST_MISSING, ST_NO_CHANNEL, ST_NOT_INSTALLED, ST_UP_TO_DATE, ST_UPDATE,
-                       CheckResult, InstallStatus, UpdateService)
+                       CheckResult, InstallStatus, MissingChannel, UpdateService)
 from .holo import CHANNEL_COLORS, CYAN
 from .theme import BAD, MUTED, OK, WARN, title_font
 
@@ -22,6 +22,10 @@ STATE_COLORS = {
     ST_NOT_INSTALLED: MUTED, ST_NO_CHANNEL: MUTED,
 }
 COLUMNS = ["Canal", "Carpeta del juego", "Juego", "Instalada", "Disponible", "Estado", "Compatibilidad"]
+GREY = QColor(70, 98, 116)
+MISSING_TIP = ("Este canal no está instalado en este PC. CIG solo lo abre en momentos concretos (pruebas, parches "
+               "urgentes…). Si lo instalas con el RSI Launcher, aparecerá aquí automáticamente; también puedes "
+               "usar «Examinar…» si está en otra carpeta.")
 
 
 def heading(title: str, subtitle: str | None = None, kicker: str | None = None) -> QWidget:
@@ -56,8 +60,25 @@ def hbox(*widgets, stretch_first: bool = False) -> QHBoxLayout:
     return row
 
 
-def fill_status_tree(tree: QTreeWidget, statuses: list[InstallStatus], checkable: bool = False,
+def _missing_item(row: MissingChannel, checkable: bool) -> QTreeWidgetItem:
+    it = QTreeWidgetItem([row.channel, row.path or "No encontrada", "—", "—", row.available_version or "—",
+                          "No instalado en este PC", "—"])
+    f = title_font(9)
+    it.setFont(0, f)
+    for c in range(len(COLUMNS)):
+        it.setForeground(c, GREY)
+        it.setToolTip(c, MISSING_TIP)
+    if checkable:
+        it.setFlags(Qt.ItemIsUserCheckable)  # visible pero deshabilitado (en gris)
+        it.setCheckState(0, Qt.Unchecked)
+    else:
+        it.setFlags(Qt.NoItemFlags)
+    return it
+
+
+def fill_status_tree(tree: QTreeWidget, statuses: list, checkable: bool = False,
                      checked_keys: set[str] | None = None) -> None:
+    """Rellena la tabla. `statuses` puede incluir filas MissingChannel (canales no instalados, en gris)."""
     tree.clear()
     tree.setColumnCount(len(COLUMNS))
     tree.setHeaderLabels([c.upper() for c in COLUMNS])
@@ -65,6 +86,9 @@ def fill_status_tree(tree: QTreeWidget, statuses: list[InstallStatus], checkable
     tree.setAlternatingRowColors(True)
     ch_font = title_font(9)
     for st in statuses:
+        if isinstance(st, MissingChannel):
+            tree.addTopLevelItem(_missing_item(st, checkable))
+            continue
         gi = st.install
         it = QTreeWidgetItem([
             gi.channel, gi.path, gi.game_version or "desconocida", st.installed_version or "—",
@@ -98,7 +122,7 @@ def fill_status_tree(tree: QTreeWidget, statuses: list[InstallStatus], checkable
     for c in range(len(COLUMNS)):
         hdr.setSectionResizeMode(c, QHeaderView.Stretch if c == 1 else QHeaderView.ResizeToContents)
     hdr.setSectionResizeMode(0, QHeaderView.Fixed)
-    tree.setColumnWidth(0, 140 if checkable else 115)
+    tree.setColumnWidth(0, 178 if checkable else 150)
 
 
 @dataclass

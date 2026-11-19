@@ -76,6 +76,14 @@ class InstallStatus:
 
 
 @dataclass
+class MissingChannel:
+    """Canal del juego que no está instalado en este PC (se muestra en gris)."""
+    channel: str
+    path: str | None
+    available_version: str | None = None
+
+
+@dataclass
 class CheckResult:
     release: Release | None
     manifest: Manifest | None
@@ -462,6 +470,28 @@ class UpdateService:
                     f"{gi.channel}: {e} Se mantiene la versión anterior.", "warning"))
                 return out
         return []
+
+    def channel_rows(self, statuses: list[InstallStatus], manifest: Manifest | None = None
+                     ) -> list[InstallStatus | MissingChannel]:
+        """Todas las instalaciones encontradas más una fila por cada canal que no está instalado,
+        en el orden de la configuración (LIVE, PTU, EPTU, HOTFIX, TECH-PREVIEW)."""
+        present = {st.install.channel for st in statuses}
+        roots: list[str] = []
+        for st in statuses:
+            r = str(Path(st.install.path).parent)
+            if r not in roots:
+                roots.append(r)
+        rows: list[InstallStatus | MissingChannel] = list(statuses)
+        for ch in self.cfg.channels:
+            if ch not in present:
+                av = manifest.version if manifest and ch in manifest.channels else None
+                rows.append(MissingChannel(ch, str(Path(roots[0]) / ch) if roots else None, av))
+        order = {c: i for i, c in enumerate(self.cfg.channels)}
+
+        def key(x):
+            ch = x.channel if isinstance(x, MissingChannel) else x.install.channel
+            return (order.get(ch, 99), isinstance(x, MissingChannel))
+        return sorted(rows, key=key)
 
     # ------------------------------------------------------------- ajustes
     def set_managed(self, gi: GameInstall, managed: bool) -> None:
