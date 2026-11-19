@@ -11,6 +11,18 @@ import validate_translation  # noqa: E402
 from sctrad.manifest import parse_manifest, verify_signature  # noqa: E402
 
 
+def _png(w, h):
+    """PNG mínimo válido (sin dependencias)."""
+    import struct
+    import zlib
+
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    raw = b"".join(b"\x00" + b"\x00\x28\x5a" * w for _ in range(h))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
 def _ini(lines, bom=True):
     body = "\r\n".join(lines) + "\r\n"
     return (b"\xef\xbb\xbf" if bom else b"") + body.encode()
@@ -109,10 +121,8 @@ def test_build_release_includes_splash(tmp_path, monkeypatch):
     root = tmp_path / "traduccion"
     (root / "LIVE").mkdir(parents=True)
     (root / "LIVE/global.ini").write_bytes(_ini([f"k{i}=valor {i}" for i in range(150)]))
-    import io
-    from PIL import Image
-    buf = io.BytesIO(); Image.new("RGB", (800, 450), (0, 40, 90)).save(buf, "PNG")
-    (root / "LIVE/SplashScreen.png").write_bytes(buf.getvalue())
+    png = _png(800, 450)
+    (root / "LIVE/SplashScreen.png").write_bytes(png)
     rep = validate_translation.Report()
     validate_translation.validate(root, json.loads(cfgp.read_text()), None, rep)
     assert not rep.errors and not any("PNG" in w or "800x450" in w for w in rep.warnings)
@@ -125,4 +135,4 @@ def test_build_release_includes_splash(tmp_path, monkeypatch):
     m = parse_manifest((out / "manifest.json").read_bytes(), make_cfg())
     ex = m.channels["LIVE"].extras[0]
     assert ex.id == "splash" and ex.target == "EasyAntiCheat/SplashScreen.png"
-    assert (out / "splash_LIVE.png").read_bytes() == buf.getvalue()
+    assert (out / "splash_LIVE.png").read_bytes() == png
