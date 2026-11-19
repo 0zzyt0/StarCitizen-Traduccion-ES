@@ -121,7 +121,11 @@ def build(a) -> int:
     channels = {}
     extra_files: dict[str, Path] = {}
     for ch, f in files.items():
-        gv = resolve_compat(compat.get(ch, "auto"), f)
+        declared = compat.get(ch, "auto")
+        gv = resolve_compat(declared, f)
+        if not (isinstance(declared, list) and declared):
+            print(f"::warning::{ch}: versión del juego sin confirmar en compatibilidad.json; se usa la detectada en "
+                  f"Frontend_PU_Version ({', '.join(gv) or 'ninguna'}), que CIG no siempre actualiza.")
         print(f"{ch}: versiones del juego compatibles -> {', '.join(gv) or 'sin declarar'}")
         channels[ch] = {"asset": f"global_{ch}.ini", "size": f.stat().st_size, "sha256": sha256(f),
                         "target": target, "game_versions": gv}

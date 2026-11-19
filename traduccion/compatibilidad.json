@@ -1,7 +1,11 @@
 {
-  "_comentario": "\"auto\" = la versión del juego se lee del propio global.ini (Frontend_PU_Version, p. ej. 'Alpha 4.10.3' -> 4.10). Solo pon una lista, p. ej. [\"4.10\", \"5.0\"], si quieres forzarla a mano.",
-  "LIVE": "auto",
-  "PTU": "auto",
+  "_comentario": "Versiones del juego CONFIRMADAS por el mantenedor antes de cada publicación (Mayor.Menor; '4.10' acepta 4.10.x). 'auto' solo es un respaldo: lee Frontend_PU_Version, que CIG no siempre actualiza.",
+  "LIVE": [
+    "4.10"
+  ],
+  "PTU": [
+    "5.0"
+  ],
   "EPTU": "auto",
   "TECH-PREVIEW": "auto"
 }
