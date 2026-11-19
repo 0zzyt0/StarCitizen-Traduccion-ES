@@ -47,13 +47,9 @@ y pide a los jugadores que lo instalen.
 
 ### 3. Primer instalador
 
-```bash
-git tag app-v1.0.0
-git push origin app-v1.0.0
-```
-
-El workflow **Compilar instalador** pasa las pruebas, compila el .exe en un servidor Windows de GitHub, crea el
-instalador con Inno Setup y lo publica como release `app-v1.0.0`. Tarda unos 10 minutos. Comprueba en la
+Se genera solo: cada vez que cambia el código del gestor en `main`, el workflow **Compilar instalador** pasa las
+pruebas, compila el .exe en un servidor Windows de GitHub, crea el instalador con Inno Setup y, si todavía no
+existe, publica la release `app-v<versión>` (la versión sale de `app/sctrad/__init__.py`). Tarda unos 10 minutos. Comprueba en la
 pestaña **Actions** que termina en verde y en **Releases** que está `StarCitizen_Traduccion_ES_Setup.exe`.
 
 También se puede lanzar a mano (Actions → Compilar instalador → Run workflow); en ese caso el instalador queda
@@ -128,8 +124,8 @@ Los archivos se publican **byte a byte**: el empaquetado nunca modifica la tradu
 ## Nueva versión del gestor
 
 1. Cambia `__version__` en `app/sctrad/__init__.py` (p. ej. `1.1.0`).
-2. Commit y push.
-3. `git tag app-v1.1.0 && git push origin app-v1.1.0`.
+2. Commit y push a `main`. El workflow crea la release `app-v1.1.0` con el instalador nuevo.
+   (También funciona crear la etiqueta: `git tag app-v1.1.0 && git push origin app-v1.1.0`.)
 
 El gestor avisa a los jugadores de que hay una versión nueva del programa con un enlace (no se actualiza solo:
 la actualización del programa es independiente de la de la traducción). Al ejecutar el instalador nuevo encima

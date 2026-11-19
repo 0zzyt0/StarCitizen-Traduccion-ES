@@ -1,11 +1,21 @@
 name: Compilar instalador
 
-# Compila el gestor (.exe) y el instalador de Windows. Se ejecuta al crear una etiqueta app-vX.Y.Z
-# o a mano desde la pestaña Actions. Las publicaciones del gestor NO se marcan como "latest"
-# para que /releases/latest siga apuntando siempre a la última traducción.
+# Compila el gestor (.exe) y el instalador de Windows cuando cambia el código del gestor en main,
+# al crear una etiqueta app-vX.Y.Z o a mano desde la pestaña Actions.
+# Si todavía no existe la release app-v<__version__>, la crea con el instalador. Si ya existe,
+# el instalador solo queda como artifact de la ejecución (para publicar uno nuevo, sube __version__).
+# Las publicaciones del gestor NO se marcan como "latest": /releases/latest siempre es la última traducción.
 on:
   push:
     tags: ["app-v*"]
+    branches: [main]
+    paths:
+      - "app/**"
+      - "assets/**"
+      - "config/**"
+      - "installer/**"
+      - "requirements*.txt"
+      - ".github/workflows/compilar-instalador.yml"
   workflow_dispatch:
 
 permissions:
@@ -106,9 +116,14 @@ jobs:
           name: StarCitizen_Traduccion_ES_Setup
           path: Output/*
 
-      - name: Publicar release del gestor
-        if: github.ref_type == 'tag'
+      - name: Publicar release del gestor (si es una versión nueva)
         shell: pwsh
         run: |
+          $tag = "app-v${{ steps.ver.outputs.version }}"
+          gh release view $tag --repo "${{ github.repository }}" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            "La release $tag ya existe: el instalador queda solo como artifact. Sube __version__ para publicar otro." >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
           $notes = "Instalador del gestor de la traducción al español de Star Citizen (versión ${{ steps.ver.outputs.version }}).`n`nDescarga **StarCitizen_Traduccion_ES_Setup.exe**, ejecútalo y sigue el asistente. Las traducciones nuevas se instalarán solas; no hace falta volver a descargar este instalador salvo que el gestor te avise de una versión nueva."
-          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "Gestor ${{ steps.ver.outputs.version }} (instalador)" --notes "$notes" --latest=false Output\StarCitizen_Traduccion_ES_Setup.exe Output\StarCitizen_Traduccion_ES_Setup.exe.sha256
+          gh release create $tag --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Gestor ${{ steps.ver.outputs.version }} (instalador)" --notes "$notes" --latest=false Output\StarCitizen_Traduccion_ES_Setup.exe Output\StarCitizen_Traduccion_ES_Setup.exe.sha256
