@@ -153,27 +153,27 @@ def test_organizar_releases_plan():
     import organizar_releases as org
     repo = "o/r"
     rels = [
-        {"id": 5, "tag_name": "traduccion-v2026.11.19.2", "name": "Traducción 2026.11.19.2", "body": "Notas X",
-         "created_at": "2026-11-19T09:00:00Z"},
-        {"id": 4, "tag_name": "app-v1.1.0", "name": "Gestor 1.1.0 (instalador)", "body": "",
-         "created_at": "2026-11-19T08:59:00Z"},
-        {"id": 3, "tag_name": "traduccion-v2026.11.19.1", "name": "t", "body": "Primera", "prerelease": False,
-         "created_at": "2026-11-19T07:00:00Z"},
-        {"id": 2, "tag_name": "app-v1.0.1", "name": "Gestor 1.0.1", "body": "", "created_at": "2026-11-19T06:00:00Z"},
+        {"id": 5, "tag_name": "traduccion-v2026.11.19.2", "name": "Traducción 2026.11.19.2", "body": "Notas X"},
+        {"id": 6, "tag_name": "v1.3.0", "name": "x", "body": ""},
+        {"id": 7, "tag_name": "v1.2.9", "name": "x", "body": ""},
+        {"id": 4, "tag_name": "app-v1.1.0", "name": "Gestor 1.1.0 (instalador)", "body": ""},
+        {"id": 3, "tag_name": "traduccion-v2026.11.19.1", "name": "t", "body": "Primera"},
     ]
     p = org.plan(rels, repo)
-    names = {e["tag"]: e for e in p["edits"]}
-    assert names["app-v1.1.0"]["name"].startswith("⬇️ INSTALADOR") and names["app-v1.1.0"]["make_latest"] == "true"
-    assert names["app-v1.0.1"]["name"].startswith("📦 Instalador anterior")
-    assert names["traduccion-v2026.11.19.2"]["make_latest"] == "false"
-    assert "No hace falta descargar" in names["traduccion-v2026.11.19.2"]["body"]
-    assert names["traduccion-v2026.11.19.2"]["body"].rstrip().endswith("Notas X")
-    assert p["reraise"] == "app-v1.1.0" and p["latest"] == "app-v1.1.0"
-    # Tras aplicar: idempotente (sin cambios ni re-subida) y la cabecera no se duplica.
+    e = {x["tag"]: x for x in p["edits"]}
+    assert e["v1.3.0"]["name"].startswith("⬇️ INSTALADOR") and e["v1.3.0"]["make_latest"] == "true"
+    assert e["v1.2.9"]["name"].startswith("📦 Instalador anterior")
+    assert e["traduccion-v2026.11.19.2"]["make_latest"] == "false"
+    assert "No hace falta descargar" in e["traduccion-v2026.11.19.2"]["body"]
+    assert e["traduccion-v2026.11.19.2"]["body"].rstrip().endswith("Notas X")
+    assert p["delete"] == ["app-v1.1.0"] and p["latest"] == "v1.3.0"
+    assert "app-v1.1.0" not in e
+    # Idempotente y sin duplicar la cabecera
     for r in rels:
-        e = names.get(r["tag_name"])
-        if e:
-            r["name"], r["body"] = e["name"], e["body"].replace("\n", "\r\n")
-    rels[1]["created_at"] = "2026-11-19T10:00:00Z"
+        if r["tag_name"] in e:
+            r["name"], r["body"] = e[r["tag_name"]]["name"], e[r["tag_name"]]["body"].replace("\n", "\r\n")
+    rels = [r for r in rels if r["tag_name"] != "app-v1.1.0"]
     p2 = org.plan(rels, repo)
-    assert p2["edits"] == [] and p2["reraise"] is None
+    assert p2["edits"] == [] and p2["delete"] == []
+    # Sin instalador nuevo todavía: no se borra el antiguo
+    assert org.plan([{"id": 1, "tag_name": "app-v1.2.0", "name": "", "body": ""}], repo)["delete"] == []

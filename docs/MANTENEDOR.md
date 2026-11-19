@@ -20,15 +20,16 @@ Hay dos tipos de publicación en el mismo repositorio, bien diferenciados en *Re
 
 | Título | Etiqueta | Qué contiene | Quién la crea | ¿«Latest»? |
 |---|---|---|---|---|
-| ⬇️ INSTALADOR — Gestor X.Y.Z (descarga aquí) | `app-vX.Y.Z` | `StarCitizen_Traduccion_ES_Setup.exe` (+ `.sha256`) | *Compilar instalador* | **Sí, siempre** |
+| ⬇️ INSTALADOR — Gestor X.Y.Z (descarga aquí) | `vX.Y.Z` | `StarCitizen_Traduccion_ES_Setup.exe` (+ `.sha256`) | *Compilar instalador* | **Sí, siempre** |
 | 🔄 Traducción AAAA.M.D.N — actualización automática | `traduccion-vAAAA.M.D.N` | `global_<CANAL>.ini`, `splash_<CANAL>.png`, `manifest.json(.sig)`, `SHA256SUMS.txt` | *Publicar traducción* | Nunca |
 
-El workflow **Organizar releases** se ejecuta solo después de cada publicación: pone los títulos y textos, marca el
-instalador como *Latest* y, si una traducción ha quedado encima, vuelve a crear la release del instalador (misma
-etiqueta y mismos archivos) para que sea siempre la primera de la página. El enlace fijo
+GitHub ordena la página *Releases* por el **nombre de la etiqueta**, de mayor a menor (comprobado con pruebas): las
+etiquetas `vX.Y.Z` del instalador quedan siempre por encima de las `traduccion-v…`. El workflow **Organizar
+releases** se ejecuta solo después de cada publicación: pone títulos y textos, marca el instalador como *Latest* y
+elimina las publicaciones antiguas del instalador con el formato `app-vX.Y.Z`. El enlace fijo
 `https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe`
 descarga siempre el instalador más reciente (es el botón del README). Los gestores buscan la traducción por su
-etiqueta `traduccion-v…`, no por «Latest». (Al volver a crearse la release, su contador de descargas se reinicia.)
+etiqueta `traduccion-v…`, no por «Latest».
 
 Las versiones de la traducción, del gestor y del juego son independientes.
 
@@ -56,7 +57,7 @@ y pide a los jugadores que lo instalen.
 
 Se genera solo: cada vez que cambia el código del gestor en `main`, el workflow **Compilar instalador** pasa las
 pruebas, compila el .exe en un servidor Windows de GitHub, crea el instalador con Inno Setup y, si todavía no
-existe, publica la release `app-v<versión>` (la versión sale de `app/sctrad/__init__.py`). Tarda unos 10 minutos. Comprueba en la
+existe, publica la release `v<versión>` (la versión sale de `app/sctrad/__init__.py`). Tarda unos 10 minutos. Comprueba en la
 pestaña **Actions** que termina en verde y en **Releases** que está `StarCitizen_Traduccion_ES_Setup.exe`.
 
 También se puede lanzar a mano (Actions → Compilar instalador → Run workflow); en ese caso el instalador queda
@@ -136,8 +137,7 @@ Los archivos se publican **byte a byte**: el empaquetado nunca modifica la tradu
 ## Nueva versión del gestor
 
 1. Cambia `__version__` en `app/sctrad/__init__.py` (p. ej. `1.1.0`).
-2. Commit y push a `main`. El workflow crea la release `app-v1.1.0` con el instalador nuevo.
-   (También funciona crear la etiqueta: `git tag app-v1.1.0 && git push origin app-v1.1.0`.)
+2. Commit y push a `main`. El workflow crea la release `v1.1.0` con el instalador nuevo.
 
 El gestor avisa a los jugadores de que hay una versión nueva del programa con un enlace (no se actualiza solo:
 la actualización del programa es independiente de la de la traducción). Al ejecutar el instalador nuevo encima

@@ -1,13 +1,14 @@
 name: Compilar instalador
 
 # Compila el gestor (.exe) y el instalador de Windows cuando cambia el código del gestor en main,
-# al crear una etiqueta app-vX.Y.Z o a mano desde la pestaña Actions.
-# Si todavía no existe la release app-v<__version__>, la crea con el instalador. Si ya existe,
+# al crear una etiqueta vX.Y.Z o a mano desde la pestaña Actions.
+# Si todavía no existe la release v<__version__>, la crea con el instalador (etiqueta "v…": GitHub ordena por
+# nombre de etiqueta, así el instalador queda siempre por encima de las traducciones "traduccion-v…"). Si ya existe,
 # el instalador solo queda como artifact de la ejecución (para publicar uno nuevo, sube __version__).
 # La release del instalador se marca como "Latest" para que esté a primera vista; las traducciones nunca.
 on:
   push:
-    tags: ["app-v*"]
+    tags: ["v*"]
     branches: [main]
     paths:
       - "app/**"
@@ -58,7 +59,7 @@ jobs:
         run: |
           $v = python -c "import sys; sys.path.insert(0,'app'); import sctrad; print(sctrad.__version__)"
           if ("${{ github.ref_type }}" -eq "tag") {
-            $tagv = "${{ github.ref_name }}".Substring(5)
+            $tagv = "${{ github.ref_name }}".Substring(1)
             if ($tagv -ne $v) { Write-Error "La etiqueta ($tagv) no coincide con __version__ ($v) en app/sctrad/__init__.py"; exit 1 }
           }
           "version=$v" >> $env:GITHUB_OUTPUT
@@ -119,7 +120,7 @@ jobs:
       - name: Publicar release del gestor (si es una versión nueva)
         shell: pwsh
         run: |
-          $tag = "app-v${{ steps.ver.outputs.version }}"
+          $tag = "v${{ steps.ver.outputs.version }}"
           gh release view $tag --repo "${{ github.repository }}" *> $null
           if ($LASTEXITCODE -eq 0) {
             "La release $tag ya existe: el instalador queda solo como artifact. Sube __version__ para publicar otro." >> $env:GITHUB_STEP_SUMMARY

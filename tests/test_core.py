@@ -415,7 +415,7 @@ def test_release_client_picks_translation_when_installer_is_latest(cfg):
         def get_json(self, url, etag=None):
             self.urls.append(url)
             data = [
-                {"tag_name": "app-v1.2.0", "draft": False, "prerelease": False, "assets": []},
+                {"tag_name": "v1.2.0", "draft": False, "prerelease": False, "assets": []},
                 {"tag_name": "traduccion-v2026.11.19.10", "draft": False, "prerelease": False, "assets": []},
                 {"tag_name": "traduccion-v2026.11.19.9", "draft": False, "prerelease": False, "assets": []},
                 {"tag_name": "traduccion-v2026.11.20.1", "draft": False, "prerelease": True, "assets": []},

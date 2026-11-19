@@ -6,7 +6,7 @@
   "github_owner": "0zzyt0",
   "github_repo": "StarCitizen-Traduccion-ES",
   "translation_tag_prefix": "traduccion-v",
-  "app_tag_prefix": "app-v",
+  "app_tag_prefix": "v",
   "manifest_asset": "manifest.json",
   "manifest_signature_asset": "manifest.json.sig",
   "signing_public_key": "t+fWqISkUu/wJCa22z/FNR7TPmlEWDZdRIHMT+BjnRc=",

@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Ordena la página Releases en dos grupos claros y deja el INSTALADOR siempre a primera vista.
 
-- Instalador (app-vX.Y.Z): título «⬇️ INSTALADOR — Gestor X.Y.Z (descarga aquí)», marcado como «Latest»
-  (aparece en la portada del repositorio y en .../releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe).
+GitHub ordena la lista de Releases por el NOMBRE de la etiqueta, de mayor a menor (comprobado: "v0.0.1" sale
+por encima de "traduccion-v2026…", y esta por encima de "app-v…"). Por eso:
+
+- Instalador: etiqueta vX.Y.Z → siempre arriba. Título «⬇️ INSTALADOR — Gestor X.Y.Z (descarga aquí)»,
+  marcado como «Latest» (portada del repositorio y .../releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe).
   Los instaladores antiguos se renombran como versiones anteriores.
-- Traducción (traduccion-vAAAA.M.D.N): título «🔄 Traducción … — actualización automática», nunca «Latest»,
-  con un aviso al principio que enlaza al instalador.
-- Si la publicación más reciente de la lista no es el instalador, se vuelve a crear la release del instalador
-  (misma etiqueta y mismos archivos) para que quede la primera de la página.
+- Traducción: etiqueta traduccion-vAAAA.M.D.N → debajo. Título «🔄 Traducción … — actualización automática»,
+  nunca «Latest», con un aviso al principio que enlaza al instalador.
+- Las publicaciones del instalador con el formato antiguo (app-vX.Y.Z) se eliminan cuando ya existe uno vX.Y.Z.
 
 Uso (en GitHub Actions, con GH_TOKEN):  python tools/organizar_releases.py --repo OWNER/REPO
       Simulación sin cambios:           python tools/organizar_releases.py --repo OWNER/REPO --dry-run
@@ -20,11 +22,10 @@ import json
 import re
 import subprocess
 import sys
-import tempfile
-import time
 from pathlib import Path
 
-APP_PREFIX = "app-v"
+APP_PREFIX = "v"
+LEGACY_APP_PREFIX = "app-v"
 TR_PREFIX = "traduccion-v"
 SETUP = "StarCitizen_Traduccion_ES_Setup.exe"
 MARK = "<!-- sctrad:cabecera -->"
@@ -103,7 +104,7 @@ def strip_header(body: str) -> str:
 
 
 def plan(releases: list[dict], repo: str) -> dict:
-    """Calcula los cambios. Devuelve {"edits": [...], "reraise": tag | None, "latest": tag | None}."""
+    """Calcula los cambios. Devuelve {"edits": [...], "delete": [tags antiguos], "latest": tag | None}."""
     rels = [r for r in releases if not r.get("draft")]
     apps = sorted(((version(r["tag_name"], APP_PREFIX), r) for r in rels if version(r["tag_name"], APP_PREFIX)),
                   key=lambda x: vt(x[0]), reverse=True)
@@ -124,12 +125,10 @@ def plan(releases: list[dict], repo: str) -> dict:
         if r.get("name") != title or not same(r.get("body"), body):
             edits.append({"id": r["id"], "tag": r["tag_name"], "name": title, "body": body,
                           "make_latest": "false"})
-    reraise = None
-    if newest_app and rels:
-        newest_created = max(rels, key=lambda r: r.get("created_at") or "")
-        if newest_created["id"] != newest_app["id"]:
-            reraise = newest_app["tag_name"]
-    return {"edits": edits, "reraise": reraise, "latest": newest_app["tag_name"] if newest_app else None}
+    legacy = []
+    if newest_app:
+        legacy = [r["tag_name"] for r in rels if version(r["tag_name"], LEGACY_APP_PREFIX)]
+    return {"edits": edits, "delete": legacy, "latest": newest_app["tag_name"] if newest_app else None}
 
 
 def gh(*args: str, input_: str | None = None) -> str:
@@ -145,35 +144,10 @@ def apply(repo: str, p: dict, dry: bool) -> None:
         if not dry:
             payload = json.dumps({"name": e["name"], "body": e["body"], "make_latest": e["make_latest"]})
             gh("api", "-X", "PATCH", f"repos/{repo}/releases/{e['id']}", "--input", "-", input_=payload)
-    tag = p["reraise"]
-    if not tag:
-        print("El instalador ya es la primera publicación de la lista.")
-        return
-    print(f"Subir {tag} a la primera posición (se vuelve a crear la release con los mismos archivos).")
-    if dry:
-        return
-    info = json.loads(gh("release", "view", tag, "--repo", repo, "--json", "name,body,assets"))
-    with tempfile.TemporaryDirectory() as d:
-        gh("release", "download", tag, "--repo", repo, "-D", d)
-        files = sorted(str(f) for f in Path(d).iterdir())
-        expected = {a["name"] for a in info["assets"]}
-        if {Path(f).name for f in files} != expected or not files:
-            raise RuntimeError("No se descargaron todos los archivos del instalador; no se toca nada.")
-        notes = Path(d) / "notas.md"
-        notes.write_text(info["body"] or "", encoding="utf-8")
-        gh("release", "delete", tag, "--repo", repo, "--yes")  # la etiqueta se conserva
-        last = None
-        for attempt in range(4):
-            try:
-                gh("release", "create", tag, "--repo", repo, "--verify-tag", "--title", info["name"],
-                   "--notes-file", str(notes), "--latest", *files)
-                break
-            except RuntimeError as err:
-                last = err
-                time.sleep(5 * (attempt + 1))
-        else:
-            raise RuntimeError(f"No se pudo volver a crear {tag}: {last}")
-    print(f"{tag} vuelve a estar el primero y marcado como «Latest».")
+    for tag in p["delete"]:
+        print(f"Eliminar publicación antigua del instalador: {tag}")
+        if not dry:
+            gh("release", "delete", tag, "--repo", repo, "--yes", "--cleanup-tag")
 
 
 def main(argv=None) -> int:

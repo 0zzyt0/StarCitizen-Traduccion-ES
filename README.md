@@ -13,7 +13,7 @@
 <p align="center">
   <b>Descárgalo una sola vez:</b> instala la traducción y la mantiene actualizada sola.<br>
   <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases/latest">Página del instalador</a> ·
-  <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases?q=app-v&expanded=true">Todos los instaladores</a> ·
+  <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases?q=INSTALADOR&expanded=true">Todos los instaladores</a> ·
   <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases?q=traduccion-v&expanded=true">Historial de traducciones</a>
 </p>
 
