@@ -9,24 +9,35 @@ from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
                                QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QMainWindow,
-                               QMessageBox, QProgressBar, QPushButton, QRadioButton, QSpinBox, QTabWidget,
-                               QTextBrowser, QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
+                               QMessageBox, QProgressBar, QPushButton, QRadioButton, QTabWidget, QTextBrowser,
+                               QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 from .. import __version__, scheduler
 from ..errors import PermissionNeededError
 from ..service import ST_MISSING, ST_UPDATE, CheckResult, InstallStatus, UpdateService, compare_app_version
 from .common import fill_status_tree, offer_elevation, show_error
+from .holo import AnimatedBackdropMixin, HoloFrame, HoloLogo, HoloSurface, dark_titlebar, glow
 from .theme import app_icon
 from .wizard import InstallWizard
 from .workers import Task
 
 ACTION_NAMES = {"instalar": "Instalar", "actualizar": "Actualizar", "reparar": "Reparar",
                 "restaurar": "Restaurar", "desinstalar": "Desinstalar"}
+ORIGINS = {"launcher": "al abrir el RSI Launcher", "juego_cerrado": "al cerrar el juego",
+           "manual": "manual", "programada": "programada"}
 
 
-class RestoreDialog(QDialog):
+def _framed(title: str, inner_layout) -> HoloFrame:
+    f = HoloFrame(title=title)
+    inner_layout.setContentsMargins(16, 26, 16, 14)
+    f.setLayout(inner_layout)
+    return f
+
+
+class RestoreDialog(AnimatedBackdropMixin, QDialog):
     def __init__(self, parent, backups):
         super().__init__(parent)
+        self._init_backdrop()
         self.setWindowTitle("Restaurar copia de seguridad")
         lay = QVBoxLayout(self)
         lbl = QLabel("Elige a qué estado quieres volver. Restaurar el «estado original» equivale a desinstalar "
@@ -44,11 +55,15 @@ class RestoreDialog(QDialog):
         lay.addWidget(self.list, 1)
         bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         bb.button(QDialogButtonBox.Ok).setText("Restaurar")
+        bb.button(QDialogButtonBox.Ok).setObjectName("Primary")
         bb.button(QDialogButtonBox.Cancel).setText("Cancelar")
         bb.accepted.connect(self.accept)
         bb.rejected.connect(self.reject)
         lay.addWidget(bb)
-        self.resize(620, 360)
+        self.resize(660, 380)
+
+    def paintEvent(self, ev):
+        self._paint_backdrop()
 
     def selected_id(self):
         it = self.list.currentItem()
@@ -63,23 +78,33 @@ class ManagerWindow(QMainWindow):
         self.busy = False
         self.setWindowTitle("Traducción al español de Star Citizen — Gestor")
         self.setWindowIcon(app_icon())
-        self.resize(1100, 680)
+        self.resize(1180, 760)
 
-        central = QWidget()
+        central = HoloSurface()
         root = QVBoxLayout(central)
+        root.setContentsMargins(22, 16, 22, 10)
         head = QHBoxLayout()
+        head.setSpacing(18)
+        head.addWidget(HoloLogo(134))
         titles = QVBoxLayout()
-        t = QLabel("Traducción al español de Star Citizen")
+        titles.setSpacing(2)
+        k = QLabel("STAR CITIZEN · PROYECTO DE LA COMUNIDAD")
+        k.setObjectName("Kicker")
+        titles.addStretch(1)
+        titles.addWidget(k)
+        t = QLabel("TRADUCCIÓN AL ESPAÑOL")
         t.setObjectName("Title")
         titles.addWidget(t)
         self.sub = QLabel(f"Gestor {__version__}")
         self.sub.setObjectName("Subtitle")
         titles.addWidget(self.sub)
+        titles.addStretch(1)
         head.addLayout(titles, 1)
         self.btn_check = QPushButton("Buscar ahora")
         self.btn_check.setObjectName("Primary")
         self.btn_check.clicked.connect(lambda: self.refresh())
-        head.addWidget(self.btn_check, 0, Qt.AlignTop)
+        glow(self.btn_check)
+        head.addWidget(self.btn_check, 0, Qt.AlignVCenter)
         root.addLayout(head)
 
         self.banner = QLabel()
@@ -91,9 +116,9 @@ class ManagerWindow(QMainWindow):
         root.addWidget(self.banner)
 
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._tab_installs(), "Instalaciones")
-        self.tabs.addTab(self._tab_auto(), "Actualizaciones automáticas")
-        self.tabs.addTab(self._tab_history(), "Historial")
+        self.tabs.addTab(self._tab_installs(), "INSTALACIONES")
+        self.tabs.addTab(self._tab_auto(), "ACTUALIZACIONES")
+        self.tabs.addTab(self._tab_history(), "HISTORIAL")
         root.addWidget(self.tabs, 1)
         self.setCentralWidget(central)
 
@@ -103,22 +128,29 @@ class ManagerWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.progress)
         QTimer.singleShot(50, self.refresh)
 
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        dark_titlebar(self)
+
     # ----------------------------------------------------------- pestañas
     def _tab_installs(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
+        lay.setContentsMargins(10, 14, 10, 10)
         self.tree = QTreeWidget()
         self.tree.itemSelectionChanged.connect(self._update_buttons)
         self.tree.itemDoubleClicked.connect(lambda *_: self.open_folder())
-        lay.addWidget(self.tree, 1)
+        inner = QVBoxLayout()
+        inner.addWidget(self.tree)
+        lay.addWidget(_framed("Instalaciones de Star Citizen", inner), 1)
         row = QHBoxLayout()
         self.btn_install = QPushButton("Instalar / actualizar…")
         self.btn_install.setObjectName("Primary")
         self.btn_install.clicked.connect(self.install_selected)
         self.btn_repair = QPushButton("Reparar")
-        self.btn_repair.setToolTip("Vuelve a instalar la versión publicada y comprueba user.cfg")
+        self.btn_repair.setToolTip("Vuelve a instalar la versión publicada, la pantalla de carga y comprueba user.cfg")
         self.btn_repair.clicked.connect(self.repair_selected)
-        self.btn_restore = QPushButton("Restaurar copia de seguridad…")
+        self.btn_restore = QPushButton("Restaurar copia…")
         self.btn_restore.clicked.connect(self.restore_selected)
         self.btn_uninstall = QPushButton("Desinstalar traducción")
         self.btn_uninstall.setObjectName("Danger")
@@ -140,15 +172,20 @@ class ManagerWindow(QMainWindow):
     def _tab_auto(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
+        lay.setContentsMargins(10, 14, 10, 10)
+        inner = QVBoxLayout()
+        inner.setSpacing(10)
         self.chk_auto = QCheckBox("Activar actualizaciones automáticas")
-        lay.addWidget(self.chk_auto)
-        desc = QLabel("Se crea una tarea de Windows ligera que comprueba GitHub al iniciar sesión y cada cierto "
-                      "tiempo. No queda ningún programa abierto en segundo plano. Nunca se cambia nada mientras "
-                      "Star Citizen está abierto: la instalación espera a que lo cierres.")
+        inner.addWidget(self.chk_auto)
+        desc = QLabel("Se comprueba GitHub <b>al abrir el RSI Launcher</b> y <b>al cerrar Star Citizen</b>, en "
+                      "segundo plano y sin molestar. Solo verás un aviso cuando haya una actualización. "
+                      "Nunca se cambia nada con el juego abierto ni mientras el launcher está parcheando.")
         desc.setWordWrap(True)
         desc.setObjectName("Subtitle")
-        lay.addWidget(desc)
+        desc.setTextFormat(Qt.RichText)
+        inner.addWidget(desc)
         grid = QGridLayout()
+        grid.setVerticalSpacing(10)
         self.rb_silent = QRadioButton("Instalar las actualizaciones automáticamente y avisarme")
         self.rb_notify = QRadioButton("Solo avisarme cuando haya una actualización")
         grp = QButtonGroup(w)
@@ -161,13 +198,21 @@ class ManagerWindow(QMainWindow):
         self.cb_channel.addItem("Estable (recomendado)", "stable")
         self.cb_channel.addItem("Beta — versiones de prueba", "beta")
         grid.addWidget(self.cb_channel, 2, 1)
-        grid.addWidget(QLabel("Comprobar cada:"), 3, 0)
-        self.sp_hours = QSpinBox()
-        self.sp_hours.setRange(1, 168)
-        self.sp_hours.setSuffix(" horas")
-        grid.addWidget(self.sp_hours, 3, 1)
         grid.setColumnStretch(2, 1)
-        lay.addLayout(grid)
+        inner.addLayout(grid)
+        lay.addWidget(_framed("Actualizaciones automáticas", inner))
+
+        inner2 = QVBoxLayout()
+        self.chk_splash = QCheckBox("Pantalla de carga de Easy Anti-Cheat de la traducción "
+                                    "(azul en LIVE, violeta en PTU)")
+        inner2.addWidget(self.chk_splash)
+        d2 = QLabel("Indica al arrancar el juego que la traducción está instalada. Si un parche del juego la "
+                    "devuelve a la original, se vuelve a poner sola. Al desactivarla se restaura la original.")
+        d2.setWordWrap(True)
+        d2.setObjectName("Subtitle")
+        inner2.addWidget(d2)
+        lay.addWidget(_framed("Apariencia", inner2))
+
         row = QHBoxLayout()
         b = QPushButton("Guardar ajustes")
         b.setObjectName("Primary")
@@ -177,6 +222,7 @@ class ManagerWindow(QMainWindow):
         lay.addLayout(row)
         self.lbl_task = QLabel()
         self.lbl_task.setWordWrap(True)
+        self.lbl_task.setTextFormat(Qt.RichText)
         lay.addWidget(self.lbl_task)
         lay.addStretch(1)
         self.chk_auto.toggled.connect(self._auto_toggled)
@@ -185,14 +231,19 @@ class ManagerWindow(QMainWindow):
     def _tab_history(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
+        lay.setContentsMargins(10, 14, 10, 10)
         self.hist = QTreeWidget()
-        self.hist.setHeaderLabels(["Fecha", "Canal", "Acción", "Versión", "Resultado", "Detalle"])
+        self.hist.setHeaderLabels(["FECHA", "CANAL", "ACCIÓN", "VERSIÓN", "RESULTADO", "DETALLE"])
         self.hist.setRootIsDecorated(False)
-        lay.addWidget(self.hist, 2)
-        lay.addWidget(QLabel("Notas de la última versión publicada:"))
+        self.hist.setAlternatingRowColors(True)
+        i1 = QVBoxLayout()
+        i1.addWidget(self.hist)
+        lay.addWidget(_framed("Historial de actualizaciones", i1), 2)
         self.notes = QTextBrowser()
         self.notes.setOpenExternalLinks(True)
-        lay.addWidget(self.notes, 1)
+        i2 = QVBoxLayout()
+        i2.addWidget(self.notes)
+        lay.addWidget(_framed("Notas de la última versión", i2), 1)
         row = QHBoxLayout()
         b = QPushButton("Abrir carpeta de registros")
         b.clicked.connect(lambda: self._open_path(self.service.data_dir / "logs"))
@@ -238,7 +289,7 @@ class ManagerWindow(QMainWindow):
     def refresh(self):
         if self.busy:
             return
-        self._set_busy(True, "Buscando actualizaciones en GitHub…")
+        self._set_busy(True, "Conectando con GitHub…")
         Task(self, lambda w: self.service.check(), on_done=self._show_result, on_error=self._check_failed).start()
 
     def _check_failed(self, exc):
@@ -259,16 +310,16 @@ class ManagerWindow(QMainWindow):
         m = res.manifest
         parts = [f"Gestor {__version__}"]
         if m:
-            parts.append(f"Traducción publicada: {m.version} ({(m.published_at or '')[:10]})")
-        parts.append("Última comprobación: " + res.checked_at.replace("T", " ").replace("Z", " UTC"))
-        self.sub.setText(" · ".join(parts))
+            parts.append(f"Traducción publicada {m.version} ({(m.published_at or '')[:10]})")
+        parts.append("Comprobado " + res.checked_at.replace("T", " ").replace("Z", " UTC"))
+        self.sub.setText("  ·  ".join(parts))
         banners = []
         if res.error:
             pre = "Sin conexión con GitHub" if res.offline else "Aviso"
             banners.append(f"⚠ {pre}: {html.escape(res.error)}")
         if compare_app_version(res.app_release, __version__):
             banners.append(f"Hay una nueva versión del gestor ({res.app_release.version}). "
-                           f"<a href='{res.app_release.html_url}'>Descárgala aquí</a>.")
+                           f"<a href='{res.app_release.html_url}' style='color:#38d6ff'>Descárgala aquí</a>.")
         n_up = sum(1 for st in res.statuses if st.state in (ST_UPDATE, ST_MISSING))
         if n_up:
             banners.append(f"Hay {n_up} instalación(es) con actualización o reparación pendiente. "
@@ -282,10 +333,7 @@ class ManagerWindow(QMainWindow):
         self.attention.setText("⚠ " + "<br>⚠ ".join(html.escape(a) for a in att) if att else "")
         self.attention.setVisible(bool(att))
         notes = (res.release.body if res.release and res.release.body else (m.notes if m else "")) or "Sin notas."
-        if hasattr(self.notes, "setMarkdown"):
-            self.notes.setMarkdown(notes)
-        else:
-            self.notes.setPlainText(notes)
+        self.notes.setMarkdown(notes)
         self._load_settings()
         self._load_history()
         self._update_buttons()
@@ -309,12 +357,10 @@ class ManagerWindow(QMainWindow):
         self.chk_auto.setChecked(bool(s.get("auto_update")))
         (self.rb_silent if s.get("mode", "silent") == "silent" else self.rb_notify).setChecked(True)
         self.cb_channel.setCurrentIndex(1 if s.get("release_channel") == "beta" else 0)
-        self.sp_hours.setValue(int(s.get("interval_hours", 24)))
+        self.chk_splash.setChecked(bool(s.get("splash", True)))
         self._auto_toggled(self.chk_auto.isChecked())
         if s.get("auto_update") and s.get("task_registered"):
-            how = ("tarea programada de Windows" if s.get("task_method") == "schtasks"
-                   else "inicio de sesión de Windows")
-            txt = f"✔ Comprobación automática activa ({how})."
+            txt = "<span style='color:#3dffb0'>●</span> Vigilante activo: se inicia con Windows."
             if s.get("task_error"):
                 txt += f"<br>⚠ {html.escape(s['task_error'])}"
         elif s.get("auto_update"):
@@ -322,19 +368,21 @@ class ManagerWindow(QMainWindow):
             if s.get("task_error"):
                 txt += f"<br>{html.escape(s['task_error'])}"
         else:
-            txt = "Las actualizaciones automáticas están desactivadas."
+            txt = "<span style='color:#6fa3b8'>●</span> Actualizaciones automáticas desactivadas."
         lc = self.service.store.snapshot().get("last_check")
         if lc:
-            txt += f"<br>Última comprobación: {lc.get('time', '').replace('T', ' ').replace('Z', ' UTC')}"
+            origin = ORIGINS.get(lc.get("origin", "manual"), lc.get("origin", ""))
+            txt += (f"<br>Última comprobación: {lc.get('time', '').replace('T', ' ').replace('Z', ' UTC')}"
+                    f" ({origin})")
         self.lbl_task.setText(txt)
 
     def _auto_toggled(self, on: bool):
-        for w in (self.rb_silent, self.rb_notify, self.sp_hours):
+        for w in (self.rb_silent, self.rb_notify):
             w.setEnabled(on)
 
     def save_settings(self):
         enabled = self.chk_auto.isChecked()
-        hours = self.sp_hours.value()
+        splash = self.chk_splash.isChecked()
         channel = self.cb_channel.currentData()
         if channel == "beta" and self.service.store.settings().get("release_channel") != "beta":
             if QMessageBox.question(self, "Canal beta",
@@ -344,18 +392,30 @@ class ManagerWindow(QMainWindow):
                 channel = "stable"
         self.service.store.update_settings(mode="silent" if self.rb_silent.isChecked() else "notify",
                                            release_channel=channel)
+        splash_changed = splash != bool(self.service.store.settings().get("splash", True))
         self._set_busy(True, "Guardando ajustes…")
 
-        def done(warn):
+        def job(w):
+            warn = scheduler.apply_settings(self.service, enabled)
+            notes = self.service.set_splash(splash) if splash_changed else []
+            return warn, notes
+
+        def done(payload):
+            warn, notes = payload
             self._set_busy(False)
-            self._load_settings()
-            if warn:
-                QMessageBox.warning(self, "Actualizaciones automáticas", warn)
+            msgs = [m for m in [warn, *notes] if m]
+            if msgs:
+                QMessageBox.warning(self, "Ajustes", "\n".join(msgs))
             else:
                 self.statusBar().showMessage("Ajustes guardados.", 5000)
+            if splash_changed and splash:
+                # Volver a poner la pantalla de carga en las instalaciones gestionadas.
+                self.refresh()
+            else:
+                self._load_settings()
 
-        Task(self, lambda w: scheduler.apply_settings(self.service, enabled, hours), on_done=done,
-             on_error=lambda e: (self._set_busy(False), show_error(self, "Ajustes", e))).start()
+        Task(self, job, on_done=done,
+             on_error=lambda e: (self._set_busy(False), show_error(self, "Ajustes", e), self._load_settings())).start()
 
     # ------------------------------------------------------------- acciones
     def _run_wizard(self, preselect: set[str] | None, action: str, touch_user_cfg: bool = True):
@@ -414,7 +474,7 @@ class ManagerWindow(QMainWindow):
         names = ", ".join(st.install.channel for st in sel)
         if QMessageBox.question(self, "Desinstalar traducción",
                                 f"Se quitará la traducción de: {names}.\n\nEl juego volverá a estar como antes de "
-                                "instalarla (se restaura la copia original y se revierte user.cfg). ¿Continuar?"
+                                "instalarla (textos, pantalla de carga y user.cfg). ¿Continuar?"
                                 ) != QMessageBox.Yes:
             return
 

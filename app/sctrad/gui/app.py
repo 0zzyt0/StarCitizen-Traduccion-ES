@@ -42,6 +42,10 @@ def run_gui(service: UpdateService, force_wizard: bool = False) -> int:
     if not lock.tryLock(100):
         QMessageBox.information(None, "Traducción Star Citizen", "El gestor de la traducción ya está abierto.")
         return 0
+    try:
+        scheduler.ensure_current(service)
+    except Exception:  # noqa: BLE001
+        log.exception("No se pudo actualizar la tarea programada")
     first = force_wizard or not service.store.settings().get("first_run_done")
     if first:
         wiz = InstallWizard(service, first_run=True)
@@ -89,9 +93,13 @@ def show_notices(notices: list[Notice], timeout_ms: int = 12000) -> None:
     tray.hide()
 
 
-def run_background(service: UpdateService) -> int:
+def run_background(service: UpdateService, origin: str = "manual") -> int:
     try:
-        notices = service.run_background()
+        scheduler.ensure_current(service)
+    except Exception:  # noqa: BLE001
+        log.exception("No se pudo actualizar la tarea programada")
+    try:
+        notices = service.run_background(origin=origin)
     except SCTradError as e:
         log.error("Comprobación en segundo plano fallida: %s", e)
         return 1

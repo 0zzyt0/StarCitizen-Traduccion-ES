@@ -320,8 +320,35 @@ def test_missing_file_is_repaired_in_background(tmp_path, cfg):
     g = live / "data/Localization/spanish_(spain)/global.ini"
     g.unlink()
     assert svc.check().statuses[0].state == ST_MISSING
-    assert svc.run_background()[0].kind == "ok"
+    assert svc.run_background() == []  # reparación silenciosa
     assert g.exists()
+
+
+def test_no_install_while_launcher_patches(tmp_path, cfg):
+    import os
+    live = make_game(tmp_path / "game", "LIVE")
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes("A=1\r\n")})
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    _install_all(svc, svc.check())
+    rel2, small2, routes2 = build_release(cfg, "2026.11.19.2", {"LIVE": ini_bytes("A=2\r\n")})
+    svc2 = _service(tmp_path, cfg, FakeClient(rel2, small2), routes2)
+    os.utime(live / "Data.p4k")  # el launcher acaba de escribir el juego
+    assert svc2.run_background(origin="launcher") == []
+    assert (live / "data/Localization/spanish_(spain)/global.ini").read_bytes() == ini_bytes("A=1\r\n")
+    os.utime(live / "Data.p4k", (0, 0))
+    assert svc2.run_background(origin="juego_cerrado")[0].kind == "ok"
+
+
+def test_incompatible_warning_only_once(tmp_path, cfg):
+    make_game(tmp_path / "game", "LIVE", version="4.3.2")
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes("A=1\r\n")})
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    _install_all(svc, svc.check())
+    rel2, small2, routes2 = build_release(cfg, "2026.11.20.1", {"LIVE": ini_bytes("A=2\r\n")},
+                                          game_versions={"LIVE": ["4.4"]})
+    svc2 = _service(tmp_path, cfg, FakeClient(rel2, small2), routes2)
+    assert len(svc2.run_background()) == 1
+    assert svc2.run_background() == []
 
 
 def test_rollback_holds_auto_update(tmp_path, cfg):

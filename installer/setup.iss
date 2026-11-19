@@ -61,11 +61,24 @@ Name: "{autoprograms}\Desinstalar traducción Star Citizen"; Filename: "{uninsta
 Name: "{autodesktop}\Traducción Star Citizen"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "Abrir el asistente de la traducción"; Flags: nowait postinstall skipifsilent
+; Vuelve a arrancar el vigilante (si las actualizaciones automáticas están desactivadas, se cierra solo).
+Filename: "{app}\{#AppExe}"; Parameters: "--vigilante"; Flags: nowait runhidden
+Filename: "{app}\{#AppExe}"; Description: "Abrir el gestor de la traducción"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
 ; Elimina la tarea programada y pregunta si quitar también la traducción del juego.
 Filename: "{app}\{#AppExe}"; Parameters: "--uninstall-cleanup"; RunOnceId: "LimpiezaTraduccionSC"; Flags: waituntilterminated
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM {#AppExe}"; RunOnceId: "DetenerVigilanteSC"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
+
+[Code]
+// Antes de copiar archivos se detiene el vigilante en segundo plano (si no, Windows bloquearía el .exe).
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#AppExe}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
+end;

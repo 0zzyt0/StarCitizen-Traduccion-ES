@@ -57,6 +57,8 @@ class AppConfig:
     game_process_names: tuple[str, ...]
     search_roots: tuple[str, ...]
     launcher_logs: tuple[str, ...]
+    extra_targets: dict[str, str] = field(default_factory=dict)
+    launcher_process_names: tuple[str, ...] = ("RSI Launcher.exe",)
     default_check_interval_hours: int = 24
     max_backups_per_install: int = 5
     max_payload_bytes: int = 200 * 1024 * 1024
@@ -125,6 +127,12 @@ def config_from_dict(data: dict) -> AppConfig:
     for name in (data.get("manifest_asset", ""), data.get("manifest_signature_asset", "")):
         if not _NAME_RE.match(name or ""):
             raise ConfigError("Nombre de archivo del manifiesto no válido.")
+    extras = data.get("extra_targets", {}) or {}
+    if not isinstance(extras, dict) or any(
+            not re.match(r"^[a-z]{1,20}$", k) or not isinstance(v, str)
+            or not re.match(r"^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+$", v) or ".." in v
+            for k, v in extras.items()):
+        raise ConfigError("La lista de archivos extra (extra_targets) no es válida.")
     require_sig = bool(data.get("require_signature", True))
     pub = data.get("signing_public_key", "") or ""
     if require_sig and not pub:
@@ -148,6 +156,8 @@ def config_from_dict(data: dict) -> AppConfig:
         game_process_names=tuple(data.get("game_process_names", ["StarCitizen.exe"])),
         search_roots=tuple(data.get("search_roots", [])),
         launcher_logs=tuple(data.get("launcher_logs", [])),
+        extra_targets=dict(extras),
+        launcher_process_names=tuple(data.get("launcher_process_names", ["RSI Launcher.exe"])),
         default_check_interval_hours=int(data.get("default_check_interval_hours", 24)),
         max_backups_per_install=max(1, int(data.get("max_backups_per_install", 5))),
         max_payload_bytes=int(data.get("max_payload_bytes", 200 * 1024 * 1024)),

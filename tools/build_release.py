@@ -102,10 +102,20 @@ def build(a) -> int:
         print("No hay archivos de traducción.")
         gh_output(skip="true", version="", tag="")
         return 0
+    extra_sources = {"splash": "SplashScreen.png"}
     channels = {}
+    extra_files: dict[str, Path] = {}
     for ch, f in files.items():
         channels[ch] = {"asset": f"global_{ch}.ini", "size": f.stat().st_size, "sha256": sha256(f),
                         "target": target, "game_versions": compat.get(ch, [])}
+        for ex_id, fname in extra_sources.items():
+            ep = root / ch / fname
+            ex_target = config.get("extra_targets", {}).get(ex_id)
+            if ep.is_file() and ex_target:
+                name = f"{ex_id}_{ch}.png"
+                extra_files[name] = ep
+                channels[ch].setdefault("extras", {})[ex_id] = {
+                    "asset": name, "size": ep.stat().st_size, "sha256": sha256(ep), "target": ex_target}
 
     releases = json.loads(Path(a.releases_json).read_text(encoding="utf-8")) if a.releases_json else []
     prefix = config["translation_tag_prefix"]
@@ -116,8 +126,11 @@ def build(a) -> int:
         except ValueError:
             prev = None
     if prev and not a.force:
-        same = {ch: (e["sha256"], tuple(e.get("game_versions", []))) for ch, e in prev.get("channels", {}).items()}
-        now = {ch: (e["sha256"], tuple(e["game_versions"])) for ch, e in channels.items()}
+        def fingerprint(chs):
+            return {ch: (e["sha256"], tuple(e.get("game_versions", [])),
+                         tuple(sorted((k, x["sha256"]) for k, x in (e.get("extras") or {}).items())))
+                    for ch, e in chs.items()}
+        same, now = fingerprint(prev.get("channels", {})), fingerprint(channels)
         if same == now:
             print("Los archivos no han cambiado desde la última publicación; no se publica nada.")
             gh_output(skip="true", version="", tag="")
@@ -145,6 +158,8 @@ def build(a) -> int:
         if sha256(out / f"global_{ch}.ini") != channels[ch]["sha256"]:
             print(f"::error::La copia de {ch} no coincide con el original.")
             return 1
+    for name, ep in extra_files.items():
+        shutil.copyfile(ep, out / name)
     raw = json.dumps(manifest, ensure_ascii=False, indent=1).encode("utf-8")
     (out / "manifest.json").write_bytes(raw)
 
@@ -179,6 +194,9 @@ def build(a) -> int:
         n = sum(1 for line in f.read_bytes().split(b"\n") if b"=" in line)
         gv = ", ".join(channels[ch]["game_versions"]) or "sin declarar"
         lines.append(f"| {ch} | {gv} | {n} | `{channels[ch]['sha256'][:16]}…` |")
+    if extra_files:
+        lines += ["", "Incluye la pantalla de carga de Easy Anti-Cheat de cada canal (indica que la traducción "
+                      "está instalada). El gestor guarda la original y la restaura al desinstalar."]
     lines += ["", "Esta publicación la instala y actualiza automáticamente el gestor "
                   "(StarCitizen_Traduccion_ES_Setup.exe). No hace falta descargar estos archivos a mano."]
     (out.parent / "notas.md").write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -14,8 +14,10 @@
 | `user_cfg_settings` | Líneas que se aseguran en `user.cfg`. |
 | `user_cfg_only_if_absent` | Ajustes que solo se añaden si el jugador no los tiene (p. ej. `g_languageAudio`). |
 | `channels` | Canales del juego soportados (`LIVE`, `PTU`, `EPTU`, `TECH-PREVIEW`). |
+| `extra_targets` | Lista blanca de archivos extra por canal: `{"splash": "EasyAntiCheat/SplashScreen.png"}`. |
+| `launcher_process_names` | Procesos cuya apertura dispara la comprobación (`RSI Launcher.exe`). |
 | `allowed_hosts` | Únicos servidores a los que se conecta el gestor (HTTPS). |
-| `game_process_names` | Procesos que indican que el juego está abierto. |
+| `game_process_names` | Procesos que indican que el juego está abierto; su cierre dispara la comprobación. |
 | `search_roots` | Rutas donde buscar el juego en cada unidad (`{drive}` = `C:`, `D:`…). |
 | `launcher_logs` | Registros del RSI Launcher de los que se extraen rutas de instalación. |
 | `default_check_interval_hours` | Intervalo por defecto de la comprobación automática. |
@@ -43,11 +45,18 @@ Las rutas que se escriben en el juego están fijadas en el código y no se puede
       "size": 15234567,
       "sha256": "…64 hex…",
       "target": "data/Localization/spanish_(spain)/global.ini",
-      "game_versions": ["4.3"]
+      "game_versions": ["4.3"],
+      "extras": {
+        "splash": {"asset": "splash_LIVE.png", "size": 447231, "sha256": "…",
+                   "target": "EasyAntiCheat/SplashScreen.png"}
+      }
     }
   }
 }
 ```
+
+`extras` es opcional. Un extra cuyo id no esté en `extra_targets` se ignora; uno cuyo `target` no coincida con
+la lista blanca hace que se rechace la publicación. Si la carpeta de destino no existe en el juego, no se crea.
 
 `manifest.json.sig` = firma Ed25519 en base64 de los bytes exactos de `manifest.json`.
 El gestor rechaza la publicación si: la firma no es válida, la versión no coincide con la etiqueta,
@@ -89,9 +98,18 @@ logs\          registros (gestor.log, segundo_plano.log)
 }
 ```
 
-## Tarea programada
+## Tarea programada y vigilante
 
-Nombre: `SC-Traduccion-ES Actualizador` (usuario actual, sin privilegios). Desencadenadores: inicio de sesión
-(+2 min) y cada N horas. Acción: `SCTraduccionES.exe --background-update`. Si Windows no permite crearla, se usa
-`HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (solo al iniciar sesión). Se elimina al desactivar las
-actualizaciones o al desinstalar el programa.
+Nombre: `SC-Traduccion-ES Actualizador` (usuario actual, sin privilegios). Desencadenador: inicio de sesión
+(+30 s). Acción: `SCTraduccionES.exe --vigilante`. Si Windows no permite crearla, se usa
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+
+El vigilante no carga la interfaz, ni usa la red: cada 4 s toma una instantánea de los nombres de proceso
+(CreateToolhelp32Snapshot). Cuando aparece `RSI Launcher.exe` (máximo una vez cada 10 min) o desaparece
+`StarCitizen.exe`, lanza `SCTraduccionES.exe --background-update --origen launcher|juego_cerrado`, que comprueba,
+instala si procede, notifica solo si hay una actualización y termina. Se detiene solo si se desactivan las
+actualizaciones; se elimina al desinstalar el programa. Registro: `logs\vigilante.log`.
+
+Avisos: las versiones nuevas se notifican (tras instalarlas, o antes si el modo es «solo avisarme»); las
+reparaciones (archivo borrado o pantalla de carga restaurada por un parche) son silenciosas; los avisos de
+pausa o error se muestran una sola vez por versión.

@@ -18,6 +18,10 @@
   },
   "user_cfg_only_if_absent": ["g_languageAudio"],
   "channels": ["LIVE", "PTU", "EPTU", "TECH-PREVIEW"],
+  "extra_targets": {
+    "splash": "EasyAntiCheat/SplashScreen.png"
+  },
+  "launcher_process_names": ["RSI Launcher.exe"],
   "allowed_hosts": [
     "api.github.com",
     "github.com",

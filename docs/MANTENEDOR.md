@@ -11,9 +11,9 @@ traduccion/<CANAL>/global.ini  ──push a main──►  Actions «Publicar tr
                                                    ├─ manifest.json + firma Ed25519 + SHA256SUMS
                                                    └─ GitHub Release «traduccion-vAAAA.M.D.N» (latest)
                                                               │
-Gestor del jugador (tarea de Windows al iniciar sesión y cada 24 h)
+Vigilante del jugador (arranca con Windows) ── al abrir RSI Launcher.exe / al cerrar StarCitizen.exe
   └─ GET /releases/latest → descarga manifest.json + .sig → verifica firma → descarga global_<CANAL>.ini
-     → comprueba SHA-256 → espera a que el juego esté cerrado → copia de seguridad → instala → verifica
+     y splash_<CANAL>.png → comprueba SHA-256 → juego cerrado y sin parchear → copia → instala → verifica
 ```
 
 Hay dos tipos de publicación en el mismo repositorio:
@@ -57,6 +57,13 @@ como *artifact* descargable de la ejecución, sin crear release.
 
 ## Publicar una traducción nueva
 
+### Pantalla de carga de Easy Anti-Cheat
+
+Cada canal puede llevar su imagen: `traduccion/LIVE/SplashScreen.png` (azul) y `traduccion/PTU/SplashScreen.png`
+(violeta). PNG de **800x450**. Se publica junto con la traducción (`splash_LIVE.png`, `splash_PTU.png`), firmada
+en el manifiesto, y el gestor la copia a `<canal>\EasyAntiCheat\SplashScreen.png` guardando la original.
+Para cambiar la imagen basta con subir otra: no hace falta recompilar el gestor.
+
 ### Opción A — desde la web de GitHub (sin instalar nada)
 
 1. Entra en la carpeta `traduccion/LIVE` del repositorio → **Add file → Upload files**.
@@ -88,13 +95,13 @@ En **Actions → Publicar traducción** verás dos pasos:
 Si subes los mismos archivos sin cambios, no se publica nada (para forzarlo: Run workflow → *forzar*).
 Para una traducción en pruebas: Run workflow → *beta* (solo la reciben quienes elijan el canal Beta).
 
-Los jugadores la recibirán en su siguiente comprobación (al iniciar sesión o como mucho en 24 h), o al pulsar
-**Buscar ahora**.
+Los jugadores la recibirán la próxima vez que abran el RSI Launcher o cierren el juego, o al pulsar
+**Buscar ahora** en el gestor.
 
 ### Comprobar la publicación
 
-- **Releases**: debe aparecer «Traducción AAAA.M.D.N» con `global_<CANAL>.ini`, `manifest.json`,
-  `manifest.json.sig` y `SHA256SUMS.txt`.
+- **Releases**: debe aparecer «Traducción AAAA.M.D.N» con `global_<CANAL>.ini`, `splash_<CANAL>.png`,
+  `manifest.json`, `manifest.json.sig` y `SHA256SUMS.txt`.
 - En tu PC: abre el gestor → **Buscar ahora**: la columna *Disponible* muestra la versión nueva.
 
 ## Compatibilidad con versiones del juego
@@ -182,7 +189,8 @@ app/sctrad/downloader.py    descarga con reanudación y SHA-256
 app/sctrad/installer.py     instalación atómica, copias, restauración, desinstalación
 app/sctrad/usercfg.py       edición mínima de user.cfg
 app/sctrad/service.py       orquestación y modo segundo plano
-app/sctrad/scheduler.py     Programador de tareas de Windows
+app/sctrad/scheduler.py     Programador de tareas de Windows (arranca el vigilante al iniciar sesión)
+app/sctrad/watcher.py       vigilante: detecta la apertura del RSI Launcher y el cierre de StarCitizen.exe
 app/sctrad/elevate.py       reintento con permisos de administrador (UAC)
 app/sctrad/gui/             interfaz PySide6 (asistente, gestor, notificaciones)
 tools/validate_translation.py, tools/build_release.py   herramientas del workflow de publicación

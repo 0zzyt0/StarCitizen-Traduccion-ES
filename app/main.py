@@ -3,7 +3,9 @@
 Uso:
   SCTraduccionES.exe                      Abre el gestor (o el asistente la primera vez)
   SCTraduccionES.exe --asistente          Abre directamente el asistente de instalación
-  SCTraduccionES.exe --background-update  Comprobación silenciosa (la usa la tarea programada)
+  SCTraduccionES.exe --vigilante          Vigilante ligero (lo arranca la tarea programada al iniciar sesión):
+                                          comprueba al abrir el RSI Launcher y al cerrar Star Citizen
+  SCTraduccionES.exe --background-update  Comprobación silenciosa (la lanza el vigilante)
   SCTraduccionES.exe --uninstall-cleanup  Limpieza al desinstalar el programa
   SCTraduccionES.exe --elevated-op FILE   Uso interno (operación con permisos de administrador)
 """
@@ -61,14 +63,14 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr = open(os.devnull, "w", encoding="utf-8")
     p = argparse.ArgumentParser(prog="SCTraduccionES", add_help=True)
     p.add_argument("--background-update", action="store_true")
+    p.add_argument("--origen", default="manual")
+    p.add_argument("--vigilante", action="store_true")
     p.add_argument("--uninstall-cleanup", action="store_true")
     p.add_argument("--asistente", action="store_true")
     p.add_argument("--elevated-op", metavar="FILE")
     p.add_argument("--version", action="version", version=__version__)
     args, _unknown = p.parse_known_args(argv)
 
-    global _MUTEX
-    _MUTEX = _create_mutex()  # se mantiene vivo durante la ejecución
     if args.elevated_op:
         import json
 
@@ -84,8 +86,17 @@ def main(argv: list[str] | None = None) -> int:
         setup_logging(default_data_dir(), "gestor")
         return _fatal(f"Error de configuración: {e}")
     data_dir = default_data_dir(cfg.app_id)
+    if args.vigilante:
+        # Sin Qt, sin red: proceso mínimo que solo mira la lista de procesos.
+        setup_logging(data_dir, "vigilante")
+        from sctrad.watcher import run_watcher
+
+        return run_watcher(cfg, data_dir)
     setup_logging(data_dir, "segundo_plano" if args.background_update else "gestor")
     logging.getLogger(__name__).info("Inicio %s (args=%s)", __version__, sys.argv[1:])
+    if not args.background_update:
+        global _MUTEX
+        _MUTEX = _create_mutex()  # el instalador pide cerrar el gestor antes de actualizarlo
 
     from sctrad.service import UpdateService
 
@@ -93,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     from sctrad.gui import app as gui
 
     if args.background_update:
-        return gui.run_background(service)
+        return gui.run_background(service, args.origen)
     if args.uninstall_cleanup:
         return gui.run_uninstall_cleanup(service)
     return gui.run_gui(service, force_wizard=args.asistente)

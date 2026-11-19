@@ -1,3 +1,3 @@
 """Gestor de la traducción al español de Star Citizen."""
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"

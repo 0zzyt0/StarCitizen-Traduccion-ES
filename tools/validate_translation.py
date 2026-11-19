@@ -35,6 +35,24 @@ ACCENTS_RE = re.compile(r"[áéíóúÁÉÍÓÚ]")
 TOKEN_RE = re.compile(r"~\w+\([^)]*\)|<[^<>\s][^<>]*>|%(?:ls|s|d|i|u|f|S|\.\d+f)|\{[^{}]*\}|\\n")
 GAMEVER_RE = re.compile(r"^(\*|\d{1,4}(\.\d{1,6}){0,3})$")
 KEY_RE = re.compile(r"^[^\s=]+$")
+# Archivos extra opcionales por canal: nombre en traduccion/<CANAL>/ -> id en extra_targets
+EXTRA_SOURCES = {"splash": "SplashScreen.png"}
+PNG_SIG = b"\x89PNG\r\n\x1a\n"
+
+
+def check_png(path: Path, rep: "Report") -> None:
+    data = path.read_bytes()
+    label = str(path)
+    if not data.startswith(PNG_SIG) or data[12:16] != b"IHDR":
+        rep.error(f"{label}: no es un PNG válido.", label)
+        return
+    if len(data) > 10 * 1024 * 1024:
+        rep.error(f"{label}: demasiado grande (máximo 10 MB).", label)
+        return
+    w, h = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+    if (w, h) != (800, 450):
+        rep.warn(f"{label}: mide {w}x{h}; la pantalla de Easy Anti-Cheat es de 800x450.", label)
+    rep.note(f"{label}: PNG {w}x{h}, {len(data)} bytes")
 
 
 class Report:
@@ -134,6 +152,13 @@ def validate(root: Path, config: dict, referencia: Path | None, rep: Report) -> 
         if len(data) > max_bytes:
             rep.error(f"{label}: demasiado grande ({len(data)} bytes).", label)
             continue
+        for ex_id, fname in EXTRA_SOURCES.items():
+            ep = root / ch / fname
+            if ep.is_file():
+                if ex_id not in config.get("extra_targets", {}):
+                    rep.error(f"{ep}: el gestor no admite este archivo extra.", str(ep))
+                else:
+                    check_png(ep, rep)
         entries = parse_ini(data, rep, label)
         if entries is None:
             continue

@@ -33,7 +33,19 @@ from .version import compare_versions, is_valid_version
 SCHEMA = 1
 ASSET_RE = re.compile(r"^global_[A-Z][A-Z0-9-]{1,20}\.ini$")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+EXTRA_ASSET_RE = re.compile(r"^[a-z]{1,20}_[A-Z][A-Z0-9-]{1,20}\.png$")
+MAX_EXTRA_BYTES = 10 * 1024 * 1024
 GAMEVER_RE = re.compile(r"^(\*|\d{1,4}(\.\d{1,6}){0,3})$")
+
+
+@dataclass(frozen=True)
+class ExtraEntry:
+    """Archivo adicional de un canal (p. ej. la pantalla de carga de Easy Anti-Cheat)."""
+    id: str
+    asset: str
+    size: int
+    sha256: str
+    target: str
 
 
 @dataclass(frozen=True)
@@ -44,6 +56,7 @@ class ChannelEntry:
     sha256: str
     target: str
     game_versions: tuple[str, ...]
+    extras: tuple[ExtraEntry, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -114,7 +127,28 @@ def parse_manifest(raw: bytes, cfg: AppConfig, expected_version: str | None = No
         if not isinstance(gv, list) or any(not isinstance(x, str) or not GAMEVER_RE.match(x) for x in gv):
             raise ManifestError(f"Lista de versiones del juego no válida para el canal {ch}.")
         seen_assets.add(asset)
-        channels[ch] = ChannelEntry(ch, asset, size, sha, target, tuple(gv))
+        extras: list[ExtraEntry] = []
+        raw_extras = entry.get("extras", {}) or {}
+        if not isinstance(raw_extras, dict):
+            raise ManifestError(f"Archivos extra no válidos para el canal {ch}.")
+        for ex_id, ex in raw_extras.items():
+            allowed = cfg.extra_targets.get(ex_id)
+            if allowed is None:
+                continue  # extra desconocido para esta versión del gestor: se ignora
+            if not isinstance(ex, dict):
+                raise ManifestError(f"Archivo extra «{ex_id}» no válido para el canal {ch}.")
+            e_asset, e_size, e_sha, e_target = ex.get("asset"), ex.get("size"), ex.get("sha256"), ex.get("target")
+            if not isinstance(e_asset, str) or not EXTRA_ASSET_RE.match(e_asset) or e_asset in seen_assets:
+                raise ManifestError(f"Nombre de archivo extra no permitido para el canal {ch}.")
+            if not isinstance(e_size, int) or isinstance(e_size, bool) or not 0 < e_size <= MAX_EXTRA_BYTES:
+                raise ManifestError(f"Tamaño de archivo extra no válido para el canal {ch}.")
+            if not isinstance(e_sha, str) or not SHA_RE.match(e_sha):
+                raise ManifestError(f"Suma SHA-256 de archivo extra no válida para el canal {ch}.")
+            if e_target != allowed:
+                raise ManifestError(f"Destino de archivo extra no permitido para el canal {ch}: {e_target!r}.")
+            seen_assets.add(e_asset)
+            extras.append(ExtraEntry(ex_id, e_asset, e_size, e_sha, e_target))
+        channels[ch] = ChannelEntry(ch, asset, size, sha, target, tuple(gv), tuple(extras))
     if not channels:
         raise ManifestError("La publicación no contiene ningún canal compatible con este gestor.")
     notes = data.get("notes", "")

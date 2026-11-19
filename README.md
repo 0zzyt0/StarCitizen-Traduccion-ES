@@ -27,16 +27,26 @@ En cada canal que elijas:
 - Se copia `data\Localization\spanish_(spain)\global.ini` (los textos en español).
 - En `user.cfg` se añade `g_language = spanish_(spain)` y, si no lo tenías, `g_languageAudio = english`
   (para no perder las voces). El resto de tus ajustes de `user.cfg` no se toca.
+- Se cambia la **pantalla de carga de Easy Anti-Cheat** (`EasyAntiCheat\SplashScreen.png`) por la de la traducción:
+  **azul holograma en LIVE** y **violeta en PTU**. Si al arrancar el juego la ves, la traducción está instalada.
+  Es opcional (se puede desactivar en el gestor) y la original se guarda y se restaura al desinstalar.
 - Antes de cambiar nada se guarda una **copia de seguridad**.
 
 ## Actualizaciones automáticas
 
-Si las activas (recomendado), el gestor crea una tarea ligera de Windows que comprueba GitHub al iniciar
-sesión y cada 24 horas. No queda ningún programa abierto en segundo plano.
+Si las activas (recomendado), al iniciar sesión en Windows arranca un **vigilante** muy ligero (unos 20 MB de
+memoria, sin ventana y sin conexión propia) que comprueba GitHub en dos momentos:
+
+- **Al abrir el RSI Launcher**: si hay una traducción nueva, queda puesta antes de que pulses «Jugar».
+- **Al cerrar Star Citizen** (`StarCitizen.exe`): por si se publicó algo mientras jugabas o un parche del juego
+  quitó la traducción o la pantalla de carga.
+
+Funciona en segundo plano sin molestar: **solo verás una notificación cuando haya una actualización**.
 
 - Cuando hay una versión nueva, se descarga, se verifica (firma digital y SHA-256) y se instala sola.
-  Recibirás una notificación de Windows.
-- **Nunca** se cambia nada con Star Citizen abierto: la actualización espera a que cierres el juego.
+- Si un parche del juego borra la traducción o devuelve la pantalla de carga original, se vuelve a poner sola,
+  sin avisos.
+- **Nunca** se cambia nada con Star Citizen abierto ni mientras el launcher está parcheando el juego.
 - Si la versión nueva no está marcada como compatible con tu versión del juego, se pausa y se mantiene la actual.
 - Si algo falla, se restaura automáticamente la versión anterior.
 
@@ -45,7 +55,7 @@ En el gestor, pestaña **Actualizaciones automáticas**, puedes:
 - Activarlas o desactivarlas.
 - Elegir entre *instalar automáticamente* o *solo avisarme*.
 - Elegir el canal **Estable** (recomendado) o **Beta** (traducciones en pruebas).
-- Cambiar cada cuántas horas se comprueba.
+- Activar o desactivar la pantalla de carga personalizada de Easy Anti-Cheat.
 
 Para abrir el gestor: menú Inicio → **Traducción Star Citizen**. Ahí también tienes **Buscar ahora** e **Historial**.
 
@@ -68,6 +78,7 @@ Para abrir el gestor: menú Inicio → **Traducción Star Citizen**. Ahí tambi�
 | «Compatibilidad no verificada» | No se pudo leer la versión del juego o la traducción no declara versiones. Normalmente funciona igual. |
 | Sigue en inglés | Comprueba en el gestor que el canal que juegas (LIVE/PTU) está *Actualizada* y pulsa **Reparar**. |
 | Sin conexión | El gestor muestra los últimos datos guardados y reintentará más tarde. Tu traducción instalada no se toca. |
+| No veo la pantalla de carga azul/violeta | Comprueba en *Actualizaciones → Apariencia* que está activada y pulsa **Reparar** en el canal. |
 | Salen textos tipo `@ui_...` | El juego se actualizó y añadió textos nuevos que aún no están traducidos; llegarán en la próxima versión. |
 
 Los registros están en `%LOCALAPPDATA%\SC-Traduccion-ES\logs` (botón **Abrir carpeta de registros** en el gestor).

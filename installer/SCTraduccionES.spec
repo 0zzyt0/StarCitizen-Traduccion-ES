@@ -12,7 +12,11 @@ a = Analysis(
         (str(root / "config" / "app_config.json"), "config"),
         (str(root / "assets" / "icono.ico"), "assets"),
         (str(root / "assets" / "icono.png"), "assets"),
+        (str(root / "assets" / "icono_emblema.png"), "assets"),
+        (str(root / "assets" / "logo_sc_es.png"), "assets"),
         (str(root / "assets" / "check.svg"), "assets"),
+        (str(root / "assets" / "fonts" / "*.ttf"), "assets/fonts"),
+        (str(root / "assets" / "fonts" / "*.txt"), "assets/fonts"),
     ],
     hiddenimports=["sctrad.gui.app", "sctrad.gui.manager", "sctrad.gui.wizard", "PySide6.QtSvg"],
     excludes=[

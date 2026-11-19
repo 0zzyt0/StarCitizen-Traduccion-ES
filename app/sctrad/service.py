@@ -44,7 +44,7 @@ STATE_LABELS = {
     ST_NOT_INSTALLED: "No instalada",
     ST_UP_TO_DATE: "Actualizada",
     ST_UPDATE: "Actualización disponible",
-    ST_MISSING: "Falta el archivo (reparar)",
+    ST_MISSING: "Faltan archivos (reparar)",
     ST_FOREIGN: "Otra traducción / archivo modificado",
     ST_NO_CHANNEL: "Sin traducción para este canal",
     ST_UNKNOWN: "Sin datos de GitHub",
@@ -214,6 +214,10 @@ class UpdateService:
             insp = self.installer.inspect(gi, entry.sha256 if entry else None)
         except SCTradError:
             insp = None
+        # Un parche del juego (o el launcher) puede haber restaurado la pantalla de carga original.
+        extras_broken = bool(insp and insp.ours and installed and entry and entry.extras
+                             and snap["settings"].get("splash", True)
+                             and self.installer.extras_needing_repair(gi, entry))
         held = bool(rec and rec.get("hold_until_newer_than") and available
                      and not is_newer(available, rec["hold_until_newer_than"]))
         if insp and insp.foreign:
@@ -228,6 +232,8 @@ class UpdateService:
             state = ST_NO_CHANNEL
         elif is_newer(available, installed):
             state = ST_UPDATE
+        elif extras_broken:
+            state = ST_MISSING
         else:
             state = ST_UP_TO_DATE
         return InstallStatus(gi, rec, installed, available, compat, state, entry, held)
@@ -257,6 +263,37 @@ class UpdateService:
         path = download_verified(self.http, asset.url, dest, entry.size, entry.sha256, progress, cancel)
         return path, entry
 
+    def stage_extras(self, rel: Release, manifest: Manifest, channel: str) -> dict[str, Path]:
+        """Descarga y verifica los extras del canal (si el jugador los tiene activados)."""
+        entry = manifest.channels.get(channel)
+        if not entry or not entry.extras or not self.store.settings().get("splash", True):
+            return {}
+        out: dict[str, Path] = {}
+        for ex in entry.extras:
+            if self.cfg.extra_targets.get(ex.id) != ex.target:
+                continue
+            asset = rel.assets.get(ex.asset)
+            if not asset or asset.size != ex.size:
+                raise ManifestError(f"El archivo {ex.asset} falta en la publicación o su tamaño no coincide.")
+            dest = self.staging_dir / manifest.version / ex.asset
+            out[ex.id] = download_verified(self.http, asset.url, dest, ex.size, ex.sha256)
+        return out
+
+    def set_splash(self, enabled: bool) -> list[str]:
+        """Activa o desactiva la pantalla de carga personalizada. Al desactivarla se restaura la original."""
+        self.store.update_settings(splash=bool(enabled))
+        notes: list[str] = []
+        if not enabled:
+            snap = self.store.snapshot()
+            for gi in self.known_installs():
+                rec = snap["installs"].get(gi.key)
+                if rec and rec.get("extras"):
+                    if self.game_running():
+                        raise GameRunningError("Star Citizen está abierto. Ciérralo para restaurar la pantalla "
+                                               "de carga original.")
+                    notes += self.installer.restore_extras(gi)
+        return notes
+
     def cleanup_staging(self, keep_version: str | None) -> None:
         if not self.staging_dir.is_dir():
             return
@@ -277,8 +314,10 @@ class UpdateService:
         say = progress_text or (lambda _m: None)
         say(f"Descargando la traducción {manifest.version} ({st.install.channel})…")
         staged, entry = self.stage(rel, manifest, st.install.channel, progress_bytes, cancel)
+        extras = self.stage_extras(rel, manifest, st.install.channel)
         self.installer.install(st.install, staged, entry, manifest.version, action=action,
-                               allow_foreign=allow_foreign, touch_user_cfg=touch_user_cfg, progress=say)
+                               allow_foreign=allow_foreign, touch_user_cfg=touch_user_cfg, progress=say,
+                               staged_extras=extras)
         return manifest.version
 
     def uninstall_one(self, gi: GameInstall) -> list[str]:
@@ -287,7 +326,8 @@ class UpdateService:
     # ---------------------------------------------------- segundo plano
     def run_background(self, wait_for_game: bool = True, poll_seconds: float = 120,
                        max_wait_seconds: float = 8 * 3600,
-                       sleep: Callable[[float], None] = time.sleep) -> list[Notice]:
+                       sleep: Callable[[float], None] = time.sleep, origin: str = "programada") -> list[Notice]:
+        """Comprobación desatendida. Solo devuelve avisos cuando hay algo que contar al jugador."""
         notices: list[Notice] = []
         bg_lock = FileLock(self.data_dir / "background.lock", timeout=0)
         try:
@@ -296,6 +336,7 @@ class UpdateService:
             log.info("Ya hay una comprobación en segundo plano en marcha.")
             return notices
         try:
+            log.info("Comprobación en segundo plano (origen: %s).", origin)
             settings = self.store.settings()
             if not settings.get("auto_update", True):
                 log.info("Actualizaciones automáticas desactivadas.")
@@ -303,40 +344,61 @@ class UpdateService:
             rel, man, offline, err = self.fetch_release()
             with self.store.transaction() as s:
                 s["last_check"] = {"time": now_iso(), "result": "error" if err else "ok",
-                                   "available_version": man.version if man else None, "detail": err}
+                                   "available_version": man.version if man else None, "detail": err,
+                                   "origin": origin}
             if offline or rel is None or man is None:
                 log.info("Comprobación sin resultado: %s", err)
                 return notices
             snap = self.store.snapshot()
-            todo: list[InstallStatus] = []
+            updates: list[InstallStatus] = []
+            repairs: list[InstallStatus] = []
             for gi in self.known_installs():
                 st = self.status_for(gi, man, snap)
                 if not st.managed or st.held:
                     continue
-                if st.state in (ST_UPDATE, ST_MISSING):
+                if st.state == ST_MISSING and not is_newer(man.version, st.installed_version or "0"):
+                    repairs.append(st)  # restaurar nuestros propios archivos: siempre, sin preguntar
+                elif st.state in (ST_UPDATE, ST_MISSING):
                     if st.compat == INCOMPATIBLE:
                         self._attention(st, f"La versión {man.version} no está marcada como compatible con "
                                             f"el juego {gi.game_version}. Se mantiene la traducción actual.")
-                        notices.append(Notice("Actualización en pausa",
-                                              f"{gi.channel}: la nueva traducción no es compatible con tu versión del "
-                                              "juego. Se mantiene la actual.", "warning"))
+                        self._notice_once(notices, f"incompat:{gi.key}:{man.version}", Notice(
+                            "Actualización en pausa",
+                            f"{gi.channel}: la traducción {man.version} es para otra versión del juego. "
+                            "Se mantiene la actual.", "warning"))
                         continue
-                    todo.append(st)
-            if not todo:
-                return notices
-            if settings.get("mode") == "notify":
-                if settings.get("last_notified") != man.version:
-                    self.store.update_settings(last_notified=man.version)
-                    notices.append(Notice("Nueva traducción disponible",
-                                          f"Versión {man.version}. Abre el gestor para instalarla."))
-                return notices
-            for st in todo:
+                    updates.append(st)
+            if updates and settings.get("mode") == "notify":
+                self._notice_once(notices, f"nueva:{man.version}", Notice(
+                    "Nueva traducción disponible",
+                    f"Versión {man.version} para {', '.join(st.install.channel for st in updates)}. "
+                    "Abre el gestor para instalarla."))
+                updates = []
+            for st in repairs + updates:
                 notices.extend(self._background_install(st, rel, man, wait_for_game, poll_seconds,
                                                         max_wait_seconds, sleep))
             self.cleanup_staging(man.version)
             return notices
         finally:
             bg_lock.release()
+
+    def _notice_once(self, notices: list[Notice], key: str, notice: Notice) -> None:
+        """Añade el aviso solo si no se mostró antes (evita repetirlo en cada apertura del launcher)."""
+        with self.store.transaction() as s:
+            seen = s["settings"].setdefault("notified", [])
+            if key in seen:
+                return
+            seen.append(key)
+            del seen[:-60]
+        notices.append(notice)
+
+    @staticmethod
+    def game_files_busy(gi: GameInstall, window: float = 180.0) -> bool:
+        """True si el launcher parece estar parcheando el juego (Data.p4k modificado hace muy poco)."""
+        try:
+            return time.time() - (Path(gi.path) / "Data.p4k").stat().st_mtime < window
+        except OSError:
+            return False
 
     def _attention(self, st: InstallStatus, text: str) -> None:
         with self.store.transaction() as s:
@@ -350,6 +412,7 @@ class UpdateService:
         action = "reparar" if st.state == ST_MISSING else "actualizar"
         try:
             staged, entry = self.stage(rel, man, gi.channel)
+            extras = self.stage_extras(rel, man, gi.channel)
         except SCTradError as e:
             log.warning("Descarga fallida para %s: %s", gi.path, e)
             return []  # se reintentará en la próxima comprobación
@@ -357,6 +420,9 @@ class UpdateService:
             r = s["installs"].get(gi.key)
             if r is not None:
                 r["pending_version"] = man.version
+        if self.game_files_busy(gi):
+            log.info("El juego se está actualizando (%s); se instalará en la próxima comprobación.", gi.path)
+            return []
         waited = 0.0
         while self.game_running():
             if not wait_for_game or waited >= max_wait_seconds:
@@ -368,7 +434,11 @@ class UpdateService:
         touch_cfg = not (Path(gi.path) / "user.cfg").exists()
         for attempt in range(3):
             try:
-                self.installer.install(gi, staged, entry, man.version, action=action, touch_user_cfg=touch_cfg)
+                self.installer.install(gi, staged, entry, man.version, action=action, touch_user_cfg=touch_cfg,
+                                       staged_extras=extras)
+                if action == "reparar":
+                    log.info("%s: archivos de la traducción restaurados (%s).", gi.channel, man.version)
+                    return []  # mantenimiento silencioso: no molesta al jugador
                 return [Notice("Traducción actualizada",
                                f"{gi.channel}: instalada la versión {man.version}.", "ok")]
             except GameRunningError:
@@ -379,12 +449,18 @@ class UpdateService:
                 sleep(30)
             except (ForeignFileError, PermissionNeededError) as e:
                 self._attention(st, str(e))
-                return [Notice("La traducción necesita tu atención", f"{gi.channel}: {e}", "warning")]
+                out: list[Notice] = []
+                self._notice_once(out, f"atencion:{gi.key}:{man.version}:{type(e).__name__}",
+                                  Notice("La traducción necesita tu atención", f"{gi.channel}: {e}", "warning"))
+                return out
             except SCTradError as e:
                 self._attention(st, str(e))
                 log.error("Actualización fallida en %s: %s (%s)", gi.path, e, e.detail)
-                return [Notice("No se pudo actualizar la traducción",
-                               f"{gi.channel}: {e} Se mantiene la versión anterior.", "warning")]
+                out = []
+                self._notice_once(out, f"fallo:{gi.key}:{man.version}", Notice(
+                    "No se pudo actualizar la traducción",
+                    f"{gi.channel}: {e} Se mantiene la versión anterior.", "warning"))
+                return out
         return []
 
     # ------------------------------------------------------------- ajustes

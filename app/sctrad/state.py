@@ -54,6 +54,7 @@ def default_state(interval_hours: int = 24) -> dict:
             "task_method": None,
             "task_error": None,
             "first_run_done": False,
+            "splash": True,
         },
         "installs": {},
         "custom_paths": [],

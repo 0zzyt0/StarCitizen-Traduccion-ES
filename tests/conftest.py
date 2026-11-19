@@ -43,6 +43,11 @@ def make_game(root: Path, channel="LIVE", version="4.3.2", user_cfg: bytes | Non
     d = root / "StarCitizen" / channel
     (d / "Bin64").mkdir(parents=True)
     (d / "Data.p4k").write_bytes(b"p4k")
+    import os
+    import time
+    os.utime(d / "Data.p4k", (time.time() - 86400, time.time() - 86400))  # juego no se está parcheando
+    (d / "EasyAntiCheat").mkdir()
+    (d / "EasyAntiCheat" / "SplashScreen.png").write_bytes(b"SPLASH-ORIGINAL-CIG")
     (d / "Bin64" / "StarCitizen.exe").write_bytes(b"exe")
     if version:
         (d / "build_manifest.id").write_text(json.dumps({"Data": {"Branch": f"sc-alpha-{version}",
@@ -121,7 +126,7 @@ class FakeClient:
 
 
 def build_release(cfg, version, payloads: dict[str, bytes], game_versions=None, sign=True,
-                  tamper=False, key_b64=None):
+                  tamper=False, key_b64=None, extras=None):
     """Devuelve (Release, FakeClient-small-dict, routes-de-descarga)."""
     channels = {}
     routes = {}
@@ -134,6 +139,14 @@ def build_release(cfg, version, payloads: dict[str, bytes], game_versions=None, 
         url = f"https://github.com/o/r/releases/download/traduccion-v{version}/{name}"
         routes[url] = data
         assets[name] = Asset(name, url, len(data))
+        for ex_id, ex_data in ((extras or {}).get(ch) or {}).items():
+            ex_name = f"{ex_id}_{ch}.png"
+            ex_url = f"https://github.com/o/r/releases/download/traduccion-v{version}/{ex_name}"
+            routes[ex_url] = ex_data
+            assets[ex_name] = Asset(ex_name, ex_url, len(ex_data))
+            channels[ch].setdefault("extras", {})[ex_id] = {
+                "asset": ex_name, "size": len(ex_data), "sha256": hashlib.sha256(ex_data).hexdigest(),
+                "target": cfg.extra_targets[ex_id]}
     manifest = json.dumps({"schema": 1, "translation_version": version, "published_at": "2026-11-19T00:00:00Z",
                            "min_app_version": "1.0.0", "language_folder": cfg.language_folder,
                            "notes": "Notas", "channels": channels}).encode()

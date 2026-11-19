@@ -13,61 +13,66 @@ from .. import __version__, scheduler
 from ..errors import SCTradError
 from ..gamepaths import INCOMPATIBLE, install_key
 from ..service import ST_FOREIGN, ST_UP_TO_DATE, CheckResult, InstallStatus, UpdateService
-from .common import JobResult, fill_status_tree, install_job, offer_elevation
+from .common import JobResult, fill_status_tree, heading, install_job, offer_elevation
+from .holo import AnimatedBackdropMixin, HoloFrame, HoloLogo, dark_titlebar, glow
 from .theme import app_icon
 from .workers import Task
 
 P_WELCOME, P_INSTALLS, P_SUMMARY, P_PROGRESS, P_FINISH = range(5)
+AUTO_TEXT = "Activar actualizaciones automáticas (se comprueba al abrir el RSI Launcher y al cerrar el juego)"
+SPLASH_TEXT = ("Cambiar la pantalla de carga de Easy Anti-Cheat (azul en LIVE, violeta en PTU) "
+               "para ver al arrancar que la traducción está instalada")
 
 
-def _title(text: str, sub: str | None = None) -> list[QLabel]:
-    t = QLabel(text)
-    t.setObjectName("Title")
-    out = [t]
-    if sub:
-        s = QLabel(sub)
-        s.setObjectName("Subtitle")
-        s.setWordWrap(True)
-        out.append(s)
-    return out
+def _framed(title: str, *widgets, stretch: int | None = None) -> HoloFrame:
+    f = HoloFrame(title=title)
+    lay = QVBoxLayout(f)
+    lay.setContentsMargins(16, 24, 16, 14)
+    for w in widgets:
+        lay.addWidget(w, stretch or 0)
+    return f
 
 
 class WelcomePage(QWizardPage):
     def __init__(self, wiz: "InstallWizard"):
         super().__init__()
         self.wiz = wiz
-        lay = QVBoxLayout(self)
-        for w in _title("Traducción al español de Star Citizen", f"Gestor de la traducción · versión {__version__}"):
-            lay.addWidget(w)
+        root = QVBoxLayout(self)
+        top = QHBoxLayout()
+        top.addWidget(HoloLogo(230), 0, Qt.AlignTop)
+        right = QVBoxLayout()
+        right.addWidget(heading("Traducción al español", f"Star Citizen · Gestor de la traducción {__version__}",
+                                kicker="Proyecto de la comunidad"))
         cfg = wiz.service.cfg
         intro = QLabel(
-            "Este asistente instala la traducción al español del juego y la mantiene actualizada.<br><br>"
-            "<b>Qué hará:</b><ul>"
-            f"<li>Copiar el archivo de textos en español en <code>data\\Localization\\{cfg.language_folder}</code> "
-            "de la instalación de Star Citizen que elijas.</li>"
-            f"<li>Añadir <code>g_language = {cfg.user_cfg_settings.get('g_language')}</code> a <code>user.cfg</code> "
+            "Este asistente instala la traducción al español del juego y la mantiene al día.<ul>"
+            f"<li>Copia los textos en español en <b>data\\Localization\\{cfg.language_folder}</b>.</li>"
+            f"<li>Añade <b>g_language = {cfg.user_cfg_settings.get('g_language')}</b> a <b>user.cfg</b> "
             "sin tocar tus otros ajustes.</li>"
-            "<li>Guardar una copia de seguridad antes de cambiar nada, para poder volver atrás.</li>"
-            "<li>Si lo activas, buscar e instalar solo las nuevas versiones que se publiquen.</li></ul>"
-            f"Origen de la traducción: <a href='{cfg.repo_url}'>{cfg.repo_url}</a><br>"
-            "Es un proyecto de la comunidad, no oficial de Cloud Imperium Games."
+            "<li>Cambia la pantalla de carga de Easy Anti-Cheat para que veas que está instalada.</li>"
+            "<li>Guarda una copia de seguridad antes de cambiar nada.</li>"
+            "<li>Comprueba si hay versión nueva al abrir el RSI Launcher y al cerrar el juego.</li></ul>"
+            f"Origen: <a href='{cfg.repo_url}' style='color:#38d6ff'>{cfg.repo_url}</a><br>"
+            "<span style='color:#6fa3b8'>No oficial: sin relación con Cloud Imperium Games.</span>"
         )
         intro.setWordWrap(True)
         intro.setOpenExternalLinks(True)
         intro.setTextFormat(Qt.RichText)
-        lay.addWidget(intro)
-        lay.addStretch(1)
-        self.status = QLabel("Consultando la última traducción publicada en GitHub…")
+        right.addWidget(_framed("Qué hará", intro))
+        top.addLayout(right, 1)
+        root.addLayout(top)
+        root.addStretch(1)
+        self.status = QLabel("Conectando con GitHub…")
         self.status.setObjectName("Banner")
         self.status.setWordWrap(True)
-        lay.addWidget(self.status)
+        root.addWidget(self.status)
         row = QHBoxLayout()
         row.addStretch(1)
         self.retry = QPushButton("Reintentar")
         self.retry.clicked.connect(self.start_check)
         self.retry.hide()
         row.addWidget(self.retry)
-        lay.addLayout(row)
+        root.addLayout(row)
         self._busy = False
 
     def initializePage(self):
@@ -76,20 +81,23 @@ class WelcomePage(QWizardPage):
         else:
             self.show_result(self.wiz.result)
 
+    def _set_kind(self, kind: str):
+        self.status.setObjectName(kind)
+        self.status.style().unpolish(self.status)
+        self.status.style().polish(self.status)
+
     def start_check(self):
         if self._busy:
             return
         self._busy = True
         self.retry.hide()
-        self.status.setObjectName("Banner")
-        self.status.setStyleSheet("")
-        self.status.setText("Consultando la última traducción publicada en GitHub…")
+        self._set_kind("Banner")
+        self.status.setText("Conectando con GitHub…")
         Task(self, lambda w: self.wiz.service.check(), on_done=self.show_result, on_error=self.on_error).start()
 
     def on_error(self, exc):
         self._busy = False
-        self.status.setObjectName("Error")
-        self.status.setStyleSheet("background:#450a0a;border:1px solid #f87171;border-radius:6px;padding:8px;")
+        self._set_kind("Error")
         self.status.setText(f"No se pudo consultar GitHub: {exc}")
         self.retry.show()
         self.completeChanged.emit()
@@ -98,13 +106,15 @@ class WelcomePage(QWizardPage):
         self._busy = False
         self.wiz.result = res
         if res.manifest:
+            self._set_kind("Banner")
             extra = " (sin conexión: datos de la última consulta)" if res.offline else ""
             fecha = (res.manifest.published_at or "")[:10]
             firma = "firma verificada ✔" if res.manifest.signature_status == "firmado" else "sin firma"
-            canales = ", ".join(res.manifest.channels)
-            self.status.setText(f"Traducción disponible: <b>{res.manifest.version}</b> · publicada {fecha} · "
-                                f"{firma} · canales: {canales}{extra}")
+            canales = " · ".join(res.manifest.channels)
+            self.status.setText(f"TRADUCCIÓN DISPONIBLE <b>{res.manifest.version}</b> — publicada {fecha} — "
+                                f"{firma} — canales {canales}{extra}")
         else:
+            self._set_kind("Warning")
             self.status.setText(f"⚠ {html.escape(res.error or 'No hay traducción disponible.')}")
             self.retry.show()
         self.completeChanged.emit()
@@ -118,22 +128,22 @@ class InstallsPage(QWizardPage):
         super().__init__()
         self.wiz = wiz
         lay = QVBoxLayout(self)
-        for w in _title("Elige dónde instalarla",
-                        "Marca las instalaciones de Star Citizen que quieres traducir. "
-                        "Solo se modificarán las que marques."):
-            lay.addWidget(w)
+        lay.addWidget(heading("Elige dónde instalarla",
+                              "Marca las instalaciones de Star Citizen que quieres traducir. "
+                              "Solo se modificarán las que marques.", kicker="Paso 1 de 3"))
         self.tree = QTreeWidget()
         self.tree.itemChanged.connect(lambda *_: self.completeChanged.emit())
-        lay.addWidget(self.tree, 1)
         self.info = QLabel()
         self.info.setWordWrap(True)
-        lay.addWidget(self.info)
-        row = QHBoxLayout()
+        self.info.setObjectName("Subtitle")
         b = QPushButton("Examinar…")
         b.setToolTip("Elige la carpeta StarCitizen o la de un canal (LIVE, PTU…)")
         b.clicked.connect(self.browse)
+        frame = _framed("Instalaciones detectadas", self.tree)
+        lay.addWidget(frame, 1)
+        row = QHBoxLayout()
+        row.addWidget(self.info, 1)
         row.addWidget(b)
-        row.addStretch(1)
         lay.addLayout(row)
 
     def initializePage(self):
@@ -150,7 +160,7 @@ class InstallsPage(QWizardPage):
             self.info.setText("No se ha encontrado Star Citizen automáticamente. Pulsa «Examinar…» y elige la "
                               "carpeta donde está instalado (por ejemplo …\\Roberts Space Industries\\StarCitizen).")
         else:
-            self.info.setText("Consejo: pasa el ratón por encima de una fila para ver más detalles.")
+            self.info.setText("Consejo: pasa el ratón por encima de una fila para ver la ruta completa.")
         self.completeChanged.emit()
 
     def checked(self) -> list[InstallStatus]:
@@ -198,17 +208,19 @@ class SummaryPage(QWizardPage):
         self.setCommitPage(True)
         self.setButtonText(QWizard.CommitButton, "Instalar")
         lay = QVBoxLayout(self)
-        for w in _title("Resumen antes de instalar", "Revisa exactamente qué se va a cambiar."):
-            lay.addWidget(w)
+        lay.addWidget(heading("Resumen", "Revisa exactamente qué se va a cambiar.", kicker="Paso 2 de 3"))
         self.text = QTextBrowser()
-        lay.addWidget(self.text, 1)
+        lay.addWidget(_framed("Cambios previstos", self.text), 1)
         self.chk_foreign = QCheckBox("Entiendo que se sustituirá la traducción existente (se guarda una copia).")
         self.chk_incompat = QCheckBox("Instalar aunque la traducción no esté marcada como compatible con mi versión "
                                       "del juego.")
         for c in (self.chk_foreign, self.chk_incompat):
             c.toggled.connect(lambda *_: self.completeChanged.emit())
             lay.addWidget(c)
-        self.chk_auto = QCheckBox("Activar actualizaciones automáticas (al iniciar sesión y cada 24 horas)")
+        self.chk_splash = QCheckBox(SPLASH_TEXT)
+        self.chk_splash.toggled.connect(lambda *_: self._render_plan())
+        lay.addWidget(self.chk_splash)
+        self.chk_auto = QCheckBox(AUTO_TEXT)
         lay.addWidget(self.chk_auto)
         row = QHBoxLayout()
         row.addWidget(QLabel("Cuando haya una versión nueva:"))
@@ -219,34 +231,40 @@ class SummaryPage(QWizardPage):
         lay.addLayout(row)
         self.chk_auto.toggled.connect(self.mode.setEnabled)
 
-    def initializePage(self):
+    def _render_plan(self):
         svc, res = self.wiz.service, self.wiz.result
         parts = []
-        any_foreign = any_incompat = False
         for st in self.wiz.selected:
             gi = st.install
             plan = svc.installer.describe_plan(gi, res.manifest.version, touch_user_cfg=self.wiz.touch_user_cfg,
-                                               expected_sha=st.entry.sha256 if st.entry else None)
+                                               expected_sha=st.entry.sha256 if st.entry else None,
+                                               entry=st.entry, with_extras=self.chk_splash.isChecked())
             comp = st.compat_label
             if st.compat == INCOMPATIBLE:
-                any_incompat = True
                 comp = (f"⚠ No compatible: la traducción declara {', '.join(st.entry.game_versions)} y tu juego es "
                         f"{gi.game_version}")
-            if st.state == ST_FOREIGN:
-                any_foreign = True
-            items = "".join(f"<li>{html.escape(p).replace(chr(10), '<br>')}</li>" for p in plan)
-            parts.append(f"<h3>{gi.channel}</h3><p style='color:#94a3b8'>{html.escape(gi.path)}<br>"
+            color = "#b47bff" if gi.channel == "PTU" else "#38d6ff"
+            items = "".join(f"<li style='margin-bottom:4px'>{html.escape(p).replace(chr(10), '<br>')}</li>"
+                            for p in plan)
+            parts.append(f"<p style='font-family:Orbitron;font-size:12pt;color:{color};margin:4px 0'>▸ {gi.channel}</p>"
+                         f"<p style='color:#6fa3b8;margin:0'>{html.escape(gi.path)}<br>"
                          f"Juego: {gi.game_version or 'versión desconocida'} · {html.escape(comp)}</p><ul>{items}</ul>")
         self.text.setHtml("".join(parts))
+
+    def initializePage(self):
+        any_foreign = any(st.state == ST_FOREIGN for st in self.wiz.selected)
+        any_incompat = any(st.compat == INCOMPATIBLE for st in self.wiz.selected)
+        any_extras = any(st.entry and st.entry.extras for st in self.wiz.selected)
+        s = self.wiz.service.store.settings()
+        self.chk_splash.setVisible(bool(any_extras))
+        self.chk_splash.setChecked(bool(s.get("splash", True)))
+        self._render_plan()
         self.chk_foreign.setVisible(any_foreign)
         self.chk_foreign.setChecked(False)
         self.chk_incompat.setVisible(any_incompat)
         self.chk_incompat.setChecked(False)
-        s = svc.store.settings()
         self.chk_auto.setChecked(bool(s.get("auto_update", True)))
         self.mode.setCurrentIndex(0 if s.get("mode", "silent") == "silent" else 1)
-        hours = int(s.get("interval_hours", 24))
-        self.chk_auto.setText(f"Activar actualizaciones automáticas (al iniciar sesión y cada {hours} horas)")
         self.completeChanged.emit()
 
     def isComplete(self):
@@ -261,6 +279,7 @@ class SummaryPage(QWizardPage):
         self.wiz.allow_incompat = self.chk_incompat.isVisible() and self.chk_incompat.isChecked()
         self.wiz.auto_update = self.chk_auto.isChecked()
         self.wiz.mode = self.mode.currentData()
+        self.wiz.splash = self.chk_splash.isChecked() if self.chk_splash.isVisible() else None
         return True
 
 
@@ -269,16 +288,20 @@ class ProgressPage(QWizardPage):
         super().__init__()
         self.wiz = wiz
         lay = QVBoxLayout(self)
-        for w in _title("Instalando", "No cierres esta ventana."):
-            lay.addWidget(w)
+        lay.addWidget(heading("Instalando", "No cierres esta ventana.", kicker="Paso 3 de 3"))
         self.current = QLabel("Preparando…")
-        lay.addWidget(self.current)
+        self.current.setObjectName("Kicker")
         self.bar = QProgressBar()
         self.bar.setRange(0, 0)
-        lay.addWidget(self.bar)
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
-        lay.addWidget(self.log, 1)
+        frame = HoloFrame(title="Registro")
+        fl = QVBoxLayout(frame)
+        fl.setContentsMargins(16, 24, 16, 14)
+        fl.addWidget(self.current)
+        fl.addWidget(self.bar)
+        fl.addWidget(self.log, 1)
+        lay.addWidget(frame, 1)
         row = QHBoxLayout()
         row.addStretch(1)
         self.btn_retry = QPushButton("Reintentar")
@@ -298,12 +321,12 @@ class ProgressPage(QWizardPage):
 
     def append(self, s: str):
         self.log.appendPlainText(s)
-        self.current.setText(s)
+        self.current.setText(s.upper())
 
     def on_bytes(self, done: int, total: int):
         self.bar.setRange(0, 1000)
         self.bar.setValue(int(done * 1000 / max(total, 1)))
-        self.bar.setFormat(f"{done / 1048576:.1f} de {total / 1048576:.1f} MB")
+        self.bar.setFormat(f"{done / 1048576:.1f} / {total / 1048576:.1f} MB")
 
     def run(self):
         self.done = False
@@ -314,6 +337,9 @@ class ProgressPage(QWizardPage):
         wiz = self.wiz
 
         def job(w):
+            if wiz.splash is not None:
+                w.text.emit("Aplicando preferencias…")
+                wiz.service.set_splash(wiz.splash)
             r = install_job(w, wiz.service, wiz.result, self.pending, wiz.action, wiz.allow_foreign,
                             wiz.allow_incompat, wiz.touch_user_cfg)
             w.text.emit("Configurando las actualizaciones automáticas…")
@@ -333,7 +359,7 @@ class ProgressPage(QWizardPage):
         self.wiz.sched_warning = warn
         self.bar.setRange(0, 1)
         self.bar.setValue(1)
-        self.bar.setFormat("")
+        self.bar.setFormat("COMPLETADO")
         if warn:
             self.append(f"⚠ {warn}")
         if r.errors:
@@ -385,14 +411,22 @@ class FinishPage(QWizardPage):
         super().__init__()
         self.wiz = wiz
         lay = QVBoxLayout(self)
+        top = QHBoxLayout()
+        top.addWidget(HoloLogo(170), 0, Qt.AlignTop)
+        right = QVBoxLayout()
+        self.kicker = QLabel("ESTADO")
+        self.kicker.setObjectName("Kicker")
         self.head = QLabel()
         self.head.setObjectName("Title")
-        lay.addWidget(self.head)
         self.body = QLabel()
         self.body.setWordWrap(True)
         self.body.setTextFormat(Qt.RichText)
-        lay.addWidget(self.body)
-        lay.addStretch(1)
+        right.addWidget(self.kicker)
+        right.addWidget(self.head)
+        right.addWidget(_framed("Resultado", self.body))
+        right.addStretch(1)
+        top.addLayout(right, 1)
+        lay.addLayout(top, 1)
         self.chk_open = QCheckBox("Abrir el gestor de la traducción")
         self.chk_open.setChecked(True)
         lay.addWidget(self.chk_open)
@@ -402,32 +436,39 @@ class FinishPage(QWizardPage):
         version = wiz.result.manifest.version
         ok = wiz.job_ok
         if ok and not wiz.job_errors:
-            self.head.setText("¡Traducción instalada!")
+            self.head.setText("TRADUCCIÓN INSTALADA")
         elif ok:
-            self.head.setText("Instalación completada en parte")
+            self.head.setText("INSTALADA EN PARTE")
         else:
-            self.head.setText("No se ha podido instalar")
-        lines = [f"✔ <b>{st.install.channel}</b>: versión {version}" for st in ok]
-        lines += [f"✖ <b>{k}</b>: {html.escape(str(e))}" for k, e in wiz.job_errors.items()]
+            self.head.setText("NO SE HA PODIDO INSTALAR")
+        lines = [f"<span style='color:#3dffb0'>✔</span> <b>{st.install.channel}</b>: versión {version}" for st in ok]
+        lines += [f"<span style='color:#ff5d6c'>✖</span> <b>{k}</b>: {html.escape(str(e))}"
+                  for k, e in wiz.job_errors.items()]
         s = wiz.service.store.settings()
         if s.get("auto_update") and s.get("task_registered"):
-            modo = "se instalarán solas" if s.get("mode") == "silent" else "se te avisará"
-            auto = f"Actualizaciones automáticas <b>activadas</b>: cuando se publique una versión nueva, {modo}."
+            modo = "se instalarán solas y te avisará" if s.get("mode") == "silent" else "te avisará para que las instales"
+            auto = ("Actualizaciones automáticas <b>activadas</b>: al abrir el RSI Launcher y al cerrar el juego se "
+                    f"comprueba GitHub; si hay una versión nueva, {modo}. Si no hay nada nuevo, no verás nada.")
         elif s.get("auto_update"):
             auto = f"⚠ No se pudo programar la comprobación automática: {html.escape(str(s.get('task_error')))}"
         else:
             auto = "Actualizaciones automáticas <b>desactivadas</b>. Puedes activarlas en el gestor."
+        splash = ""
+        if ok and s.get("splash", True) and any(st.entry and st.entry.extras for st in ok):
+            splash = ("<br><br>Al iniciar Star Citizen verás la pantalla de carga de Easy Anti-Cheat de la "
+                      "traducción (azul en LIVE, violeta en PTU): así sabes que está instalada.")
         tips = ("<br><br>Inicia Star Citizen como siempre: los textos aparecerán en español. "
-                "Si alguna vez quieres volver al inglés, usa «Desinstalar traducción» en el gestor.")
-        self.body.setText("<br>".join(lines) + "<br><br>" + auto + (tips if ok else ""))
+                "Para volver al inglés, usa «Desinstalar traducción» en el gestor.")
+        self.body.setText("<br>".join(lines) + "<br><br>" + auto + (splash + tips if ok else ""))
         self.chk_open.setVisible(wiz.first_run)
 
 
-class InstallWizard(QWizard):
+class InstallWizard(AnimatedBackdropMixin, QWizard):
     def __init__(self, service: UpdateService, result: CheckResult | None = None,
                  preselect: set[str] | None = None, action: str = "instalar", first_run: bool = False,
                  touch_user_cfg: bool = True, parent=None):
         super().__init__(parent)
+        self._init_backdrop()
         self.service = service
         self.result = result
         self.preselect = preselect
@@ -438,19 +479,26 @@ class InstallWizard(QWizard):
         self.allow_foreign = self.allow_incompat = False
         self.auto_update = True
         self.mode = "silent"
+        self.splash: bool | None = None
         self.job_ok: list[InstallStatus] = []
         self.job_errors: dict[str, SCTradError] = {}
         self.sched_warning: str | None = None
-        self.setWindowTitle("Instalar la traducción al español de Star Citizen")
+        self.setWindowTitle("Traducción al español de Star Citizen — Instalación")
         self.setWindowIcon(app_icon())
-        self.setWizardStyle(QWizard.ModernStyle)
+        self.setWizardStyle(QWizard.ClassicStyle)
         self.setOption(QWizard.NoBackButtonOnLastPage, True)
         self.setOption(QWizard.NoCancelButtonOnLastPage, True)
-        self.setButtonText(QWizard.NextButton, "Siguiente >")
-        self.setButtonText(QWizard.BackButton, "< Atrás")
+        self.setButtonText(QWizard.NextButton, "Siguiente ›")
+        self.setButtonText(QWizard.BackButton, "‹ Atrás")
         self.setButtonText(QWizard.FinishButton, "Finalizar")
         self.setButtonText(QWizard.CancelButton, "Cancelar")
         self.setButtonText(QWizard.CommitButton, "Instalar")
+        for b in (QWizard.NextButton, QWizard.CommitButton, QWizard.FinishButton):
+            btn = self.button(b)
+            btn.setObjectName("Primary")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            glow(btn)
         self.setPage(P_WELCOME, WelcomePage(self))
         self.setPage(P_INSTALLS, InstallsPage(self))
         self.setPage(P_SUMMARY, SummaryPage(self))
@@ -458,7 +506,14 @@ class InstallWizard(QWizard):
         self.setPage(P_FINISH, FinishPage(self))
         if result is not None and result.manifest and not first_run:
             self.setStartId(P_INSTALLS)
-        self.resize(860, 620)
+        self.resize(980, 680)
+
+    def paintEvent(self, ev):
+        self._paint_backdrop()
+
+    def showEvent(self, ev):
+        super().showEvent(ev)
+        dark_titlebar(self)
 
     @property
     def open_manager(self) -> bool:

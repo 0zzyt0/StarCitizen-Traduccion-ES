@@ -102,3 +102,27 @@ def test_latest_tag_ignores_app_and_drafts(tmp_path):
     rel = [{"tag_name": "app-v2.0.0"}, {"tag_name": "traduccion-v2026.11.19.9"},
            {"tag_name": "traduccion-v2026.11.19.10"}, {"tag_name": "traduccion-v2026.12.1.1", "draft": True}]
     assert build_release.latest_published(rel, "traduccion-v") == "traduccion-v2026.11.19.10"
+
+
+def test_build_release_includes_splash(tmp_path, monkeypatch):
+    cfgp = _config(tmp_path)
+    root = tmp_path / "traduccion"
+    (root / "LIVE").mkdir(parents=True)
+    (root / "LIVE/global.ini").write_bytes(_ini([f"k{i}=valor {i}" for i in range(150)]))
+    import io
+    from PIL import Image
+    buf = io.BytesIO(); Image.new("RGB", (800, 450), (0, 40, 90)).save(buf, "PNG")
+    (root / "LIVE/SplashScreen.png").write_bytes(buf.getvalue())
+    rep = validate_translation.Report()
+    validate_translation.validate(root, json.loads(cfgp.read_text()), None, rep)
+    assert not rep.errors and not any("PNG" in w or "800x450" in w for w in rep.warnings)
+    rel = tmp_path / "releases.json"; rel.write_text("[]")
+    monkeypatch.setenv("MANIFEST_SIGNING_KEY", TEST_PRIV_B64)
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "dist"
+    assert build_release.main(["build", "--root", str(root), "--config", str(cfgp), "--out", str(out),
+                               "--releases-json", str(rel)]) == 0
+    m = parse_manifest((out / "manifest.json").read_bytes(), make_cfg())
+    ex = m.channels["LIVE"].extras[0]
+    assert ex.id == "splash" and ex.target == "EasyAntiCheat/SplashScreen.png"
+    assert (out / "splash_LIVE.png").read_bytes() == buf.getvalue()
