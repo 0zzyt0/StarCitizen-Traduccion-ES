@@ -1,7 +1,11 @@
 {
   "_comentario": "Versiones del juego con las que es compatible cada global.ini. \"4.3\" acepta 4.3.0, 4.3.1, 4.3.2... Lista vacía = sin declarar (los jugadores verán 'Compatibilidad no verificada'). Si el juego del jugador es de una versión distinta a la declarada, la actualización automática se pausa.",
-  "LIVE": [],
-  "PTU": [],
+  "LIVE": [
+    "4.10"
+  ],
+  "PTU": [
+    "5.0"
+  ],
   "EPTU": [],
   "TECH-PREVIEW": []
 }
