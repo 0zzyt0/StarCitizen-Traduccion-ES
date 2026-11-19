@@ -1,13 +1,33 @@
-# Traducción al español de Star Citizen
+<p align="center">
+  <img src="assets/icono.png" width="150" alt="Traducción al español de Star Citizen">
+</p>
+
+<h1 align="center">Traducción al español de Star Citizen</h1>
+
+<p align="center">
+  <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe">
+    <img src="https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DESCARGAR_INSTALADOR-Windows_10%2F11_(.exe)-38d6ff?style=for-the-badge&logo=windows&logoColor=white" height="46" alt="Descargar el instalador">
+  </a>
+</p>
+
+<p align="center">
+  <b>Descárgalo una sola vez:</b> instala la traducción y la mantiene actualizada sola.<br>
+  <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases/latest">Página del instalador</a> ·
+  <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases?q=app-v&expanded=true">Todos los instaladores</a> ·
+  <a href="https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases?q=traduccion-v&expanded=true">Historial de traducciones</a>
+</p>
 
 Traducción de la comunidad de los textos de Star Citizen al español, con un instalador para Windows que
 **la instala y la mantiene actualizada sola**. Proyecto no oficial, sin relación con Cloud Imperium Games.
 
+> **¿Qué descargo de la página *Releases*?** Solo la publicación **⬇️ INSTALADOR — Gestor …** (siempre la primera,
+> marcada como *Latest*). Las publicaciones **🔄 Traducción …** son las actualizaciones de los textos: el gestor las
+> instala solo, **no hay que descargarlas**.
+
 ## Descargar e instalar
 
-1. Descarga **`StarCitizen_Traduccion_ES_Setup.exe`** desde la
-   [página de publicaciones](https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases?q=app-v&expanded=true)
-   (la publicación que se llama «Gestor X.Y.Z (instalador)»).
+1. Descarga **[`StarCitizen_Traduccion_ES_Setup.exe`](https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe)**
+   (el botón de arriba; o en *Releases*, la publicación **⬇️ INSTALADOR — Gestor …**).
 2. Ejecútalo. No hace falta ser administrador.
    - Si Windows muestra «Windows protegió su PC», pulsa **Más información → Ejecutar de todas formas**.
      Aparece porque el instalador no está firmado con un certificado de pago; el código es público en este repositorio.

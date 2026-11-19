@@ -4,7 +4,7 @@ name: Compilar instalador
 # al crear una etiqueta app-vX.Y.Z o a mano desde la pestaña Actions.
 # Si todavía no existe la release app-v<__version__>, la crea con el instalador. Si ya existe,
 # el instalador solo queda como artifact de la ejecución (para publicar uno nuevo, sube __version__).
-# Las publicaciones del gestor NO se marcan como "latest": /releases/latest siempre es la última traducción.
+# La release del instalador se marca como "Latest" para que esté a primera vista; las traducciones nunca.
 on:
   push:
     tags: ["app-v*"]
@@ -125,5 +125,10 @@ jobs:
             "La release $tag ya existe: el instalador queda solo como artifact. Sube __version__ para publicar otro." >> $env:GITHUB_STEP_SUMMARY
             exit 0
           }
-          $notes = "Instalador del gestor de la traducción al español de Star Citizen (versión ${{ steps.ver.outputs.version }}).`n`nDescarga **StarCitizen_Traduccion_ES_Setup.exe**, ejecútalo y sigue el asistente. Las traducciones nuevas se instalarán solas; no hace falta volver a descargar este instalador salvo que el gestor te avise de una versión nueva."
-          gh release create $tag --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "Gestor ${{ steps.ver.outputs.version }} (instalador)" --notes "$notes" --latest=false Output\StarCitizen_Traduccion_ES_Setup.exe Output\StarCitizen_Traduccion_ES_Setup.exe.sha256
+          $v = "${{ steps.ver.outputs.version }}"
+          python -c "import sys; sys.path.insert(0,'tools'); import organizar_releases as o; open('notas_instalador.md','w',encoding='utf-8').write(o.installer_body('${{ github.repository }}', '$v'))"
+          python -c "import sys; sys.path.insert(0,'tools'); import organizar_releases as o; open('titulo.txt','w',encoding='utf-8').write(o.installer_title('$v'))"
+          $titulo = (Get-Content -Raw -Encoding utf8 titulo.txt).Trim()
+          # El instalador es la publicación «Latest»: sale en la portada del repositorio y el enlace
+          # .../releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe siempre baja el último.
+          gh release create $tag --repo "${{ github.repository }}" --target "${{ github.sha }}" --title "$titulo" --notes-file notas_instalador.md --latest Output\StarCitizen_Traduccion_ES_Setup.exe Output\StarCitizen_Traduccion_ES_Setup.exe.sha256

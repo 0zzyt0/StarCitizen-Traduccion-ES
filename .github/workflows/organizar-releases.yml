@@ -1,0 +1,38 @@
+name: Organizar releases
+
+# Deja la página Releases en dos grupos claros y el INSTALADOR siempre a primera vista
+# (título «⬇️ INSTALADOR …», marcado como Latest y el primero de la lista).
+# Se ejecuta solo después de publicar una traducción o un instalador, o a mano.
+on:
+  workflow_run:
+    workflows: ["Publicar traducción", "Compilar instalador"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "tools/organizar_releases.py"
+      - ".github/workflows/organizar-releases.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: organizar-releases
+  cancel-in-progress: false
+
+jobs:
+  organizar:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Ordenar publicaciones
+        run: python tools/organizar_releases.py --repo "${{ github.repository }}"

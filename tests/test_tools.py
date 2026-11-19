@@ -146,3 +146,34 @@ def test_compat_auto_from_pu_version(tmp_path):
     assert build_release.resolve_compat(["5.0"], f) == ["5.0"]
     f.write_bytes(_ini(["a=b", "Frontend_PU_Version,P=Alpha 5.0: X"]))
     assert build_release.resolve_compat([], f) == ["5.0"]
+
+
+def test_organizar_releases_plan():
+    sys.path.insert(0, str(ROOT / "tools"))
+    import organizar_releases as org
+    repo = "o/r"
+    rels = [
+        {"id": 5, "tag_name": "traduccion-v2026.11.19.2", "name": "Traducción 2026.11.19.2", "body": "Notas X",
+         "created_at": "2026-11-19T09:00:00Z"},
+        {"id": 4, "tag_name": "app-v1.1.0", "name": "Gestor 1.1.0 (instalador)", "body": "",
+         "created_at": "2026-11-19T08:59:00Z"},
+        {"id": 3, "tag_name": "traduccion-v2026.11.19.1", "name": "t", "body": "Primera", "prerelease": False,
+         "created_at": "2026-11-19T07:00:00Z"},
+        {"id": 2, "tag_name": "app-v1.0.1", "name": "Gestor 1.0.1", "body": "", "created_at": "2026-11-19T06:00:00Z"},
+    ]
+    p = org.plan(rels, repo)
+    names = {e["tag"]: e for e in p["edits"]}
+    assert names["app-v1.1.0"]["name"].startswith("⬇️ INSTALADOR") and names["app-v1.1.0"]["make_latest"] == "true"
+    assert names["app-v1.0.1"]["name"].startswith("📦 Instalador anterior")
+    assert names["traduccion-v2026.11.19.2"]["make_latest"] == "false"
+    assert "No hace falta descargar" in names["traduccion-v2026.11.19.2"]["body"]
+    assert names["traduccion-v2026.11.19.2"]["body"].rstrip().endswith("Notas X")
+    assert p["reraise"] == "app-v1.1.0" and p["latest"] == "app-v1.1.0"
+    # Tras aplicar: idempotente (sin cambios ni re-subida) y la cabecera no se duplica.
+    for r in rels:
+        e = names.get(r["tag_name"])
+        if e:
+            r["name"], r["body"] = e["name"], e["body"].replace("\n", "\r\n")
+    rels[1]["created_at"] = "2026-11-19T10:00:00Z"
+    p2 = org.plan(rels, repo)
+    assert p2["edits"] == [] and p2["reraise"] is None

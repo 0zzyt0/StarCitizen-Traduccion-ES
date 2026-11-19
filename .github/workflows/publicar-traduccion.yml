@@ -90,8 +90,12 @@ jobs:
           version="${{ steps.paquete.outputs.version }}"
           pre=""
           if [ "${{ inputs.beta }}" = "true" ]; then pre="--prerelease"; fi
+          titulo="🔄 Traducción $version — actualización automática"
+          if [ -n "$pre" ]; then titulo="🔄 Traducción $version — beta, actualización automática"; fi
+          python -c "import sys; sys.path.insert(0,'tools'); import organizar_releases as o; print(o.translation_header('$REPO'))" > cabecera.md
+          cat cabecera.md notas.md > notas_release.md
           gh release create "$tag" --repo "$REPO" --draft $pre --target "$GITHUB_SHA" \
-            --title "Traducción $version" --notes-file notas.md dist/*
+            --title "$titulo" --notes-file notas_release.md dist/*
           esperado=$(ls dist | wc -l)
           subidos=$(gh release view "$tag" --repo "$REPO" --json assets --jq '[.assets[] | select(.state=="uploaded")] | length')
           if [ "$subidos" != "$esperado" ]; then
@@ -109,11 +113,9 @@ jobs:
             gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag || true
             exit 1
           fi
-          if [ -n "$pre" ]; then
-            gh release edit "$tag" --repo "$REPO" --draft=false
-          else
-            gh release edit "$tag" --repo "$REPO" --draft=false --latest
-          fi
+          # La traducción nunca es «Latest»: ese puesto es del instalador, para que se vea a primera vista.
+          # Los gestores encuentran la traducción por su etiqueta (traduccion-v…).
+          gh release edit "$tag" --repo "$REPO" --draft=false --latest=false
           echo "### ✅ Publicada la traducción $version" >> "$GITHUB_STEP_SUMMARY"
           echo "https://github.com/$REPO/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
 

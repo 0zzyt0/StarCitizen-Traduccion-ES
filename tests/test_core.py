@@ -402,3 +402,29 @@ def test_disallowed_host(cfg):
         h.open("https://evil.example.com/x")
     with pytest.raises(NetworkError):
         h.open("http://github.com/x")
+
+
+def test_release_client_picks_translation_when_installer_is_latest(cfg):
+    import json as _json
+    from sctrad.github import ReleaseClient
+
+    class Http:
+        def __init__(self):
+            self.urls = []
+
+        def get_json(self, url, etag=None):
+            self.urls.append(url)
+            data = [
+                {"tag_name": "app-v1.2.0", "draft": False, "prerelease": False, "assets": []},
+                {"tag_name": "traduccion-v2026.11.19.10", "draft": False, "prerelease": False, "assets": []},
+                {"tag_name": "traduccion-v2026.11.19.9", "draft": False, "prerelease": False, "assets": []},
+                {"tag_name": "traduccion-v2026.11.20.1", "draft": False, "prerelease": True, "assets": []},
+                {"tag_name": "traduccion-v2026.12.1.1", "draft": True, "prerelease": False, "assets": []},
+            ]
+            return 200, _json.loads(_json.dumps(data)), "etag"
+    h = Http()
+    c = ReleaseClient(cfg, h)
+    assert c.latest_translation().version == "2026.11.19.10"
+    assert c.latest_translation(include_prerelease=True).version == "2026.11.20.1"
+    assert c.latest_app().version == "1.2.0"
+    assert all("/releases/latest" not in u for u in h.urls)

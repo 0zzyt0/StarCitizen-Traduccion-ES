@@ -104,18 +104,13 @@ class ReleaseClient:
         return best
 
     def latest_translation(self, include_prerelease: bool = False) -> Release | None:
-        prefix = self.cfg.translation_tag_prefix
-        if not include_prerelease:
-            try:
-                data = self._get_cached(f"{self._base}/releases/latest")
-                rel = _parse_release(data, prefix) if isinstance(data, dict) else None
-                if rel and not rel.prerelease:
-                    return rel
-            except NetworkError as e:
-                if "404" not in str(e):
-                    raise
-            # La "última" publicación no es de la traducción (p. ej. del gestor): buscar en la lista.
-        return self._list(prefix, include_prerelease)
+        """Última traducción publicada (no borradores; prereleases solo en el canal beta).
+
+        La publicación marcada como «Latest» del repositorio es el INSTALADOR (para que los jugadores lo
+        encuentren a primera vista), así que la traducción se busca en la lista filtrando por etiqueta y
+        ordenando por versión numérica. Una sola petición, con caché ETag.
+        """
+        return self._list(self.cfg.translation_tag_prefix, include_prerelease)
 
     def latest_app(self) -> Release | None:
         return self._list(self.cfg.app_tag_prefix, False)
