@@ -1,0 +1,45 @@
+{
+  "_comentario": "Configuracion del gestor. Los valores de GitHub apuntan al repositorio oficial de la traduccion. Ver docs/CONFIGURACION.md.",
+  "schema": 1,
+  "app_id": "SC-Traduccion-ES",
+  "app_name": "Traducción al español de Star Citizen",
+  "github_owner": "0zzyt0",
+  "github_repo": "StarCitizen-Traduccion-ES",
+  "translation_tag_prefix": "traduccion-v",
+  "app_tag_prefix": "app-v",
+  "manifest_asset": "manifest.json",
+  "manifest_signature_asset": "manifest.json.sig",
+  "signing_public_key": "t+fWqISkUu/wJCa22z/FNR7TPmlEWDZdRIHMT+BjnRc=",
+  "require_signature": true,
+  "language_folder": "spanish_(spain)",
+  "user_cfg_settings": {
+    "g_language": "spanish_(spain)",
+    "g_languageAudio": "english"
+  },
+  "user_cfg_only_if_absent": ["g_languageAudio"],
+  "channels": ["LIVE", "PTU", "EPTU", "TECH-PREVIEW"],
+  "allowed_hosts": [
+    "api.github.com",
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+    "github-releases.githubusercontent.com"
+  ],
+  "game_process_names": ["StarCitizen.exe"],
+  "search_roots": [
+    "{drive}\\Program Files\\Roberts Space Industries\\StarCitizen",
+    "{drive}\\Program Files (x86)\\Roberts Space Industries\\StarCitizen",
+    "{drive}\\Roberts Space Industries\\StarCitizen",
+    "{drive}\\Games\\Roberts Space Industries\\StarCitizen",
+    "{drive}\\Juegos\\Roberts Space Industries\\StarCitizen",
+    "{drive}\\StarCitizen"
+  ],
+  "launcher_logs": [
+    "%APPDATA%\\rsilauncher\\logs\\log.log",
+    "%APPDATA%\\rsilauncher\\log.log"
+  ],
+  "default_check_interval_hours": 24,
+  "max_backups_per_install": 5,
+  "max_payload_bytes": 209715200,
+  "scheduled_task_name": "SC-Traduccion-ES Actualizador"
+}

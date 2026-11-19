@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+build/
+dist/
+Output/
+verificacion/
+releases.json
+previous_manifest.json
+/notas.md
+/a.txt
+/b.txt
+*.pfx
+MANIFEST_SIGNING_KEY*

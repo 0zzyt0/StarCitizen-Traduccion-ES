@@ -1,0 +1,122 @@
+name: Publicar traducción
+
+# Se ejecuta al subir (git push o subida web) cambios en traduccion/ o referencia/ a la rama main.
+# Valida los archivos, calcula una versión nueva, firma el manifiesto y crea una GitHub Release.
+# Los gestores de los jugadores la detectan y la instalan solos.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "traduccion/**"
+      - "referencia/**"
+  workflow_dispatch:
+    inputs:
+      beta:
+        description: "Publicar como beta (solo la reciben quienes elijan el canal beta)"
+        type: boolean
+        default: false
+      forzar:
+        description: "Publicar aunque los archivos no hayan cambiado"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publicar-traduccion
+  cancel-in-progress: false
+
+jobs:
+  validar:
+    name: Validar traducción
+    runs-on: ubuntu-latest
+    outputs:
+      hay_archivos: ${{ steps.validar.outputs.hay_archivos }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validar archivos
+        id: validar
+        run: python tools/validate_translation.py --root traduccion --config config/app_config.json --referencia referencia
+
+  publicar:
+    name: Publicar release
+    needs: validar
+    if: needs.validar.outputs.hay_archivos == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: pip install cryptography==50.0.1
+
+      - name: Leer publicaciones anteriores
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPO/releases?per_page=100" > releases.json
+          prev="$(python tools/build_release.py latest-tag --releases-json releases.json --config config/app_config.json)"
+          echo "Última publicación: ${prev:-ninguna}"
+          if [ -n "$prev" ]; then
+            gh release download "$prev" --repo "$REPO" -p manifest.json -O previous_manifest.json || true
+          fi
+
+      - name: Preparar paquete firmado
+        id: paquete
+        env:
+          MANIFEST_SIGNING_KEY: ${{ secrets.MANIFEST_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          extra=""
+          if [ "${{ inputs.forzar }}" = "true" ]; then extra="--force"; fi
+          python tools/build_release.py build --root traduccion --config config/app_config.json --out dist \
+            --releases-json releases.json --previous-manifest previous_manifest.json \
+            --notes-file traduccion/NOTAS.md $extra
+
+      - name: Crear la release (borrador), subir y verificar
+        if: steps.paquete.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          tag="${{ steps.paquete.outputs.tag }}"
+          version="${{ steps.paquete.outputs.version }}"
+          pre=""
+          if [ "${{ inputs.beta }}" = "true" ]; then pre="--prerelease"; fi
+          gh release create "$tag" --repo "$REPO" --draft $pre --target "$GITHUB_SHA" \
+            --title "Traducción $version" --notes-file notas.md dist/*
+          esperado=$(ls dist | wc -l)
+          subidos=$(gh release view "$tag" --repo "$REPO" --json assets --jq '[.assets[] | select(.state=="uploaded")] | length')
+          if [ "$subidos" != "$esperado" ]; then
+            echo "::error::Solo se subieron $subidos de $esperado archivos. Se cancela la publicación."
+            gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag || true
+            exit 1
+          fi
+          # Comprobar que lo subido es idéntico a lo preparado.
+          mkdir -p verificacion
+          gh release download "$tag" --repo "$REPO" -D verificacion
+          (cd dist && sha256sum * ) | sort > a.txt
+          (cd verificacion && sha256sum * ) | sort > b.txt
+          if ! diff -q a.txt b.txt; then
+            echo "::error::Los archivos subidos no coinciden. Se cancela la publicación."
+            gh release delete "$tag" --repo "$REPO" --yes --cleanup-tag || true
+            exit 1
+          fi
+          if [ -n "$pre" ]; then
+            gh release edit "$tag" --repo "$REPO" --draft=false
+          else
+            gh release edit "$tag" --repo "$REPO" --draft=false --latest
+          fi
+          echo "### ✅ Publicada la traducción $version" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://github.com/$REPO/releases/tag/$tag" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Sin cambios
+        if: steps.paquete.outputs.skip == 'true'
+        run: echo "### Sin cambios en los archivos de traducción; no se ha publicado nada." >> "$GITHUB_STEP_SUMMARY"

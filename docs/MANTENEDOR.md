@@ -1,0 +1,196 @@
+# Guía del mantenedor
+
+Cómo funciona todo, cómo publicar una traducción nueva y cómo generar el instalador.
+
+## Visión general
+
+```
+traduccion/<CANAL>/global.ini  ──push a main──►  Actions «Publicar traducción»
+                                                   ├─ valida (formato, claves, marcadores, sin tildes)
+                                                   ├─ versión nueva AAAA.M.D.N (siempre creciente)
+                                                   ├─ manifest.json + firma Ed25519 + SHA256SUMS
+                                                   └─ GitHub Release «traduccion-vAAAA.M.D.N» (latest)
+                                                              │
+Gestor del jugador (tarea de Windows al iniciar sesión y cada 24 h)
+  └─ GET /releases/latest → descarga manifest.json + .sig → verifica firma → descarga global_<CANAL>.ini
+     → comprueba SHA-256 → espera a que el juego esté cerrado → copia de seguridad → instala → verifica
+```
+
+Hay dos tipos de publicación en el mismo repositorio:
+
+| Etiqueta | Qué contiene | Quién la crea | ¿«Latest»? |
+|---|---|---|---|
+| `traduccion-vAAAA.M.D.N` | `global_LIVE.ini`, `global_PTU.ini`…, `manifest.json`, `manifest.json.sig`, `SHA256SUMS.txt` | Workflow *Publicar traducción* | Sí |
+| `app-vX.Y.Z` | `StarCitizen_Traduccion_ES_Setup.exe` (+ `.sha256`) | Workflow *Compilar instalador* | No |
+
+Las versiones de la traducción, del gestor y del juego son independientes.
+
+## Configuración inicial (una sola vez)
+
+### 1. Secreto de firma
+
+Las publicaciones se firman para que nadie pueda colar archivos falsos a los jugadores. La clave pública ya está
+en `config/app_config.json` (`signing_public_key`). La privada debe guardarse como secreto del repositorio:
+
+1. GitHub → repositorio → **Settings → Secrets and variables → Actions → New repository secret**.
+2. Nombre: `MANIFEST_SIGNING_KEY`. Valor: el contenido del archivo `MANIFEST_SIGNING_KEY.txt` que se te entregó.
+3. Guarda una copia del archivo en un sitio seguro y fuera del repositorio (gestor de contraseñas, USB).
+   **No lo subas nunca al repositorio.**
+
+Si se pierde o se filtra la clave: genera un par nuevo (ver «Cambiar la clave de firma»), publica un gestor nuevo
+y pide a los jugadores que lo instalen.
+
+### 2. Permisos de Actions
+
+**Settings → Actions → General → Workflow permissions**: deja «Read repository contents…» (los workflows piden
+`contents: write` solo en el paso de publicación).
+
+### 3. Primer instalador
+
+```bash
+git tag app-v1.0.0
+git push origin app-v1.0.0
+```
+
+El workflow **Compilar instalador** pasa las pruebas, compila el .exe en un servidor Windows de GitHub, crea el
+instalador con Inno Setup y lo publica como release `app-v1.0.0`. Tarda unos 10 minutos. Comprueba en la
+pestaña **Actions** que termina en verde y en **Releases** que está `StarCitizen_Traduccion_ES_Setup.exe`.
+
+También se puede lanzar a mano (Actions → Compilar instalador → Run workflow); en ese caso el instalador queda
+como *artifact* descargable de la ejecución, sin crear release.
+
+## Publicar una traducción nueva
+
+### Opción A — desde la web de GitHub (sin instalar nada)
+
+1. Entra en la carpeta `traduccion/LIVE` del repositorio → **Add file → Upload files**.
+2. Arrastra tu `global.ini` (debe llamarse exactamente así).
+3. Repite con `traduccion/PTU` si toca.
+4. (Opcional) Edita `traduccion/NOTAS.md` con los cambios y `traduccion/compatibilidad.json` con las versiones
+   del juego.
+5. **Commit changes** directamente en `main`.
+
+### Opción B — con git
+
+```bash
+cp ~/traducciones/global_ES_LIVE.ini traduccion/LIVE/global.ini
+cp ~/traducciones/global_ES_PTU.ini  traduccion/PTU/global.ini
+git add traduccion
+git commit -m "Traducción parche 4.x.y"
+git push
+```
+
+### Qué pasa después
+
+En **Actions → Publicar traducción** verás dos pasos:
+
+1. **Validar traducción**: si hay errores (claves repetidas, líneas rotas, tildes, marcadores perdidos…) el
+   resumen de la ejecución los lista y **no se publica nada**. Corrige y vuelve a subir.
+2. **Publicar release**: crea la release en borrador, sube los archivos, comprueba que lo subido es idéntico y
+   solo entonces la hace pública y «latest».
+
+Si subes los mismos archivos sin cambios, no se publica nada (para forzarlo: Run workflow → *forzar*).
+Para una traducción en pruebas: Run workflow → *beta* (solo la reciben quienes elijan el canal Beta).
+
+Los jugadores la recibirán en su siguiente comprobación (al iniciar sesión o como mucho en 24 h), o al pulsar
+**Buscar ahora**.
+
+### Comprobar la publicación
+
+- **Releases**: debe aparecer «Traducción AAAA.M.D.N» con `global_<CANAL>.ini`, `manifest.json`,
+  `manifest.json.sig` y `SHA256SUMS.txt`.
+- En tu PC: abre el gestor → **Buscar ahora**: la columna *Disponible* muestra la versión nueva.
+
+## Compatibilidad con versiones del juego
+
+`traduccion/compatibilidad.json`:
+
+```json
+{ "LIVE": ["4.3"], "PTU": ["4.4"] }
+```
+
+- `"4.3"` acepta 4.3.0, 4.3.1, 4.3.2…; `"4.3.2"` solo esa.
+- Lista vacía: «Compatibilidad no verificada» (se instala igualmente).
+- Si el juego del jugador no coincide, la actualización automática **se pausa** y se mantiene su traducción
+  actual; en el gestor puede instalarla a mano confirmando el aviso.
+
+El gestor lee la versión del juego de `build_manifest.id` en la carpeta del canal; si no puede, muestra
+«Compatibilidad no verificada».
+
+## Validación con el inglés original (recomendado)
+
+Sube el `global.ini` original en inglés a `referencia/<CANAL>/global.ini`. La validación comprobará que no faltan
+claves y que se conservan `~mission(...)`, `<EM4>`, `%ls`, `{...}` y `\n`. Los niveles se ajustan en
+`traduccion/validacion.json` (`error`, `aviso` o `ignorar`). La regla «sin tildes» también se configura ahí.
+
+Los archivos se publican **byte a byte**: el empaquetado nunca modifica la traducción.
+
+## Nueva versión del gestor
+
+1. Cambia `__version__` en `app/sctrad/__init__.py` (p. ej. `1.1.0`).
+2. Commit y push.
+3. `git tag app-v1.1.0 && git push origin app-v1.1.0`.
+
+El gestor avisa a los jugadores de que hay una versión nueva del programa con un enlace (no se actualiza solo:
+la actualización del programa es independiente de la de la traducción). Al ejecutar el instalador nuevo encima
+del anterior se conservan ajustes, historial y copias.
+
+Si un cambio futuro del manifiesto exigiera un gestor nuevo, sube `min_app_version` (la herramienta lo toma de
+`min_app_version_for_payload` en `config/app_config.json`): los gestores antiguos lo detectarán y pedirán actualizar.
+
+## Firma de código del .exe (opcional)
+
+Sin firma, Windows SmartScreen muestra un aviso la primera vez. Si consigues un certificado de firma de código
+(o un programa gratuito para proyectos libres, como SignPath Foundation), añade los secretos
+`WINDOWS_CERT_PFX_BASE64` (el .pfx en base64) y `WINDOWS_CERT_PASSWORD`; el workflow firmará el .exe y el
+instalador automáticamente.
+
+## Cambiar la clave de firma
+
+```bash
+python -c "import base64;from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey as K;from cryptography.hazmat.primitives import serialization as s;k=K.generate();print('PRIVADA',base64.b64encode(k.private_bytes(s.Encoding.Raw,s.PrivateFormat.Raw,s.NoEncryption())).decode());print('PUBLICA',base64.b64encode(k.public_key().public_bytes(s.Encoding.Raw,s.PublicFormat.Raw)).decode())"
+```
+
+Pon la pública en `config/app_config.json`, la privada en el secreto `MANIFEST_SIGNING_KEY`, sube la versión del
+gestor y publica el instalador nuevo. Los gestores antiguos rechazarán las publicaciones firmadas con la clave
+nueva hasta que se actualicen.
+
+## Desarrollo local
+
+```bash
+pip install -r requirements-dev.txt
+python app/main.py                     # abrir el gestor
+python app/main.py --background-update # simular la tarea programada
+QT_QPA_PLATFORM=offscreen python -m pytest -q
+```
+
+Compilar el instalador en un PC con Windows (alternativa a GitHub Actions):
+
+```powershell
+pip install -r requirements-dev.txt
+pyinstaller installer\SCTraduccionES.spec --noconfirm --clean
+& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DAppVersion=1.0.0 installer\setup.iss
+# Resultado: Output\StarCitizen_Traduccion_ES_Setup.exe
+```
+
+## Estructura del proyecto
+
+```
+app/main.py                 punto de entrada (gestor, --background-update, --uninstall-cleanup)
+app/sctrad/config.py        configuración
+app/sctrad/gamepaths.py     detección de instalaciones, versión del juego, compatibilidad
+app/sctrad/net.py           HTTPS con lista de servidores permitidos, reintentos, redirecciones validadas
+app/sctrad/github.py        API de GitHub Releases (con caché ETag)
+app/sctrad/manifest.py      manifiesto y firma Ed25519
+app/sctrad/downloader.py    descarga con reanudación y SHA-256
+app/sctrad/installer.py     instalación atómica, copias, restauración, desinstalación
+app/sctrad/usercfg.py       edición mínima de user.cfg
+app/sctrad/service.py       orquestación y modo segundo plano
+app/sctrad/scheduler.py     Programador de tareas de Windows
+app/sctrad/elevate.py       reintento con permisos de administrador (UAC)
+app/sctrad/gui/             interfaz PySide6 (asistente, gestor, notificaciones)
+tools/validate_translation.py, tools/build_release.py   herramientas del workflow de publicación
+installer/                  PyInstaller (.spec) e Inno Setup (.iss)
+.github/workflows/          pruebas, publicar traducción, compilar instalador
+tests/                      pruebas automáticas
+```

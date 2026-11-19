@@ -1,0 +1,7 @@
+{
+  "_comentario": "Reglas que comprueba GitHub Actions antes de publicar. Niveles: error | aviso | ignorar.",
+  "sin_tildes": true,
+  "claves_faltantes": "error",
+  "marcadores_faltantes": "error",
+  "minimo_lineas": 100
+}

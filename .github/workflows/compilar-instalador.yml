@@ -1,0 +1,114 @@
+name: Compilar instalador
+
+# Compila el gestor (.exe) y el instalador de Windows. Se ejecuta al crear una etiqueta app-vX.Y.Z
+# o a mano desde la pestaña Actions. Las publicaciones del gestor NO se marcan como "latest"
+# para que /releases/latest siga apuntando siempre a la última traducción.
+on:
+  push:
+    tags: ["app-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+  compilar:
+    needs: pruebas
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Opcional: certificado de firma de código (evita el aviso de SmartScreen). Vacío = sin firmar.
+      CERT_PFX: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Versión
+        id: ver
+        shell: pwsh
+        run: |
+          $v = python -c "import sys; sys.path.insert(0,'app'); import sctrad; print(sctrad.__version__)"
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $tagv = "${{ github.ref_name }}".Substring(5)
+            if ($tagv -ne $v) { Write-Error "La etiqueta ($tagv) no coincide con __version__ ($v) en app/sctrad/__init__.py"; exit 1 }
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Pruebas en Windows
+        run: python -m pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
+
+      - name: PyInstaller
+        run: pyinstaller installer/SCTraduccionES.spec --noconfirm --clean
+
+      - name: Prueba del ejecutable
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "dist\SCTraduccionES\SCTraduccionES.exe" -ArgumentList "--version" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Write-Error "El ejecutable no arranca (código $($p.ExitCode))"; exit 1 }
+
+      - name: Firmar ejecutable (opcional)
+        if: ${{ env.CERT_PFX != '' }}
+        shell: pwsh
+        env:
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:CERT_PFX))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
+          & $signtool.FullName sign /f cert.pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "dist\SCTraduccionES\SCTraduccionES.exe"
+          Remove-Item cert.pfx
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DAppVersion=${{ steps.ver.outputs.version }}" installer\setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $h = (Get-FileHash Output\StarCitizen_Traduccion_ES_Setup.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  StarCitizen_Traduccion_ES_Setup.exe" | Out-File -Encoding ascii Output\StarCitizen_Traduccion_ES_Setup.exe.sha256
+
+      - name: Firmar instalador (opcional)
+        if: ${{ env.CERT_PFX != '' }}
+        shell: pwsh
+        env:
+          CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:CERT_PFX))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -like "*x64*" } | Select-Object -First 1
+          & $signtool.FullName sign /f cert.pfx /p $env:CERT_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 "Output\StarCitizen_Traduccion_ES_Setup.exe"
+          Remove-Item cert.pfx
+          $h = (Get-FileHash Output\StarCitizen_Traduccion_ES_Setup.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  StarCitizen_Traduccion_ES_Setup.exe" | Out-File -Encoding ascii Output\StarCitizen_Traduccion_ES_Setup.exe.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StarCitizen_Traduccion_ES_Setup
+          path: Output/*
+
+      - name: Publicar release del gestor
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        run: |
+          $notes = "Instalador del gestor de la traducción al español de Star Citizen (versión ${{ steps.ver.outputs.version }}).`n`nDescarga **StarCitizen_Traduccion_ES_Setup.exe**, ejecútalo y sigue el asistente. Las traducciones nuevas se instalarán solas; no hace falta volver a descargar este instalador salvo que el gestor te avise de una versión nueva."
+          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --title "Gestor ${{ steps.ver.outputs.version }} (instalador)" --notes "$notes" --latest=false Output\StarCitizen_Traduccion_ES_Setup.exe Output\StarCitizen_Traduccion_ES_Setup.exe.sha256

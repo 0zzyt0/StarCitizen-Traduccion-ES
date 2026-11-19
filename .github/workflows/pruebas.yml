@@ -1,0 +1,28 @@
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/**", "tests/**", "tools/**", "config/**", "requirements*.txt"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+        env:
+          QT_QPA_PLATFORM: offscreen
