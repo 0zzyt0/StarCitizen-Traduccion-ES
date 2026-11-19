@@ -16,10 +16,8 @@ jobs:
         run: |
           set -e
           echo "prueba" > p.txt
-          gh release create "traduccion-v0.20261119.99" --repo "$REPO" --target "$GITHUB_SHA" --title "PRUEBA ORDEN A (se borra)" --notes "Prueba temporal" --latest=false p.txt
-          gh release create "zz-prueba-orden" --repo "$REPO" --target "$GITHUB_SHA" --title "PRUEBA ORDEN B (se borra)" --notes "Prueba temporal" --latest=false p.txt
+          gh release create "v0.0.1" --repo "$REPO" --target "$GITHUB_SHA" --title "PRUEBA ORDEN C (se borra)" --notes "Prueba temporal" --latest=false p.txt
           sleep 5
           echo "ORDEN_API:"; gh api "repos/$REPO/releases?per_page=20" --jq '.[].tag_name'
-          gh release delete "traduccion-v0.20261119.99" --repo "$REPO" --yes --cleanup-tag
-          gh release delete "zz-prueba-orden" --repo "$REPO" --yes --cleanup-tag
+          gh release delete "v0.0.1" --repo "$REPO" --yes --cleanup-tag
           echo "BORRADAS"
