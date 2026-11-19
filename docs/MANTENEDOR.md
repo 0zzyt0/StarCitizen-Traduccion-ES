@@ -65,6 +65,13 @@ como *artifact* descargable de la ejecución, sin crear release.
 
 ## Publicar una traducción nueva
 
+### Canal HOTFIX
+
+HOTFIX usa la misma traducción que LIVE: no hay que subir nada para él. Cada publicación incluye
+`global_HOTFIX.ini` como copia exacta del `global.ini` de LIVE y con su misma versión del juego
+(`publish_channel_sources` en `config/app_config.json`). Si algún día HOTFIX necesitara un archivo propio, basta con
+subir `traduccion/HOTFIX/global.ini` y se usará ese. La pantalla de carga no se copia (la de LIVE pone «LIVE»).
+
 ### Pantalla de carga de Easy Anti-Cheat
 
 Cada canal puede llevar su imagen: `traduccion/LIVE/SplashScreen.png` (azul) y `traduccion/PTU/SplashScreen.png`

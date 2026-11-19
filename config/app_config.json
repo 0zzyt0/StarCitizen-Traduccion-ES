@@ -18,6 +18,10 @@
   },
   "user_cfg_only_if_absent": ["g_languageAudio"],
   "channels": ["LIVE", "PTU", "EPTU", "HOTFIX", "TECH-PREVIEW"],
+  "_publish_channel_sources": "Canales que se publican con el global.ini de otro canal (lo usa la herramienta de publicación; el gestor no lo lee).",
+  "publish_channel_sources": {
+    "HOTFIX": "LIVE"
+  },
   "extra_targets": {
     "splash": "EasyAntiCheat/SplashScreen.png"
   },

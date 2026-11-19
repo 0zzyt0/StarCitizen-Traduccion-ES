@@ -113,6 +113,12 @@ def build(a) -> int:
     if cf.is_file():
         compat = {k: v for k, v in json.loads(cf.read_text(encoding="utf-8")).items() if not k.startswith("_")}
     files = {ch: root / ch / "global.ini" for ch in config["channels"] if (root / ch / "global.ini").is_file()}
+    # Canales que usan la traducción de otro (p. ej. HOTFIX = LIVE), salvo que tengan su propio archivo.
+    sources = {ch: src for ch, src in (config.get("publish_channel_sources") or {}).items()
+               if ch in config["channels"] and ch not in files and src in files}
+    for ch, src in sources.items():
+        files[ch] = files[src]
+    files = {ch: files[ch] for ch in config["channels"] if ch in files}
     if not files:
         print("No hay archivos de traducción.")
         gh_output(skip="true", version="", tag="")
@@ -122,6 +128,8 @@ def build(a) -> int:
     extra_files: dict[str, Path] = {}
     for ch, f in files.items():
         declared = compat.get(ch, "auto")
+        if ch in sources and not (isinstance(declared, list) and declared):
+            declared = compat.get(sources[ch], "auto")  # misma versión del juego que su canal de origen
         gv = resolve_compat(declared, f)
         if not (isinstance(declared, list) and declared):
             print(f"::warning::{ch}: versión del juego sin confirmar en compatibilidad.json; se usa la detectada en "
@@ -130,6 +138,8 @@ def build(a) -> int:
         channels[ch] = {"asset": f"global_{ch}.ini", "size": f.stat().st_size, "sha256": sha256(f),
                         "target": target, "game_versions": gv}
         for ex_id, fname in extra_sources.items():
+            if ch in sources:
+                continue  # la pantalla de carga es propia de cada canal (la de LIVE pone «LIVE»)
             ep = root / ch / fname
             ex_target = config.get("extra_targets", {}).get(ex_id)
             if ep.is_file() and ex_target:
@@ -214,7 +224,8 @@ def build(a) -> int:
     for ch, f in files.items():
         n = sum(1 for line in f.read_bytes().split(b"\n") if b"=" in line)
         gv = ", ".join(channels[ch]["game_versions"]) or "sin declarar"
-        lines.append(f"| {ch} | {gv} | {n} | `{channels[ch]['sha256'][:16]}…` |")
+        alias = f" (misma que {sources[ch]})" if ch in sources else ""
+        lines.append(f"| {ch}{alias} | {gv} | {n} | `{channels[ch]['sha256'][:16]}…` |")
     if extra_files:
         lines += ["", "Incluye la pantalla de carga de Easy Anti-Cheat de cada canal (indica que la traducción "
                       "está instalada). El gestor guarda la original y la restaura al desinstalar."]

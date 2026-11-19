@@ -177,3 +177,25 @@ def test_organizar_releases_plan():
     assert p2["edits"] == [] and p2["delete"] == []
     # Sin instalador nuevo todavía: no se borra el antiguo
     assert org.plan([{"id": 1, "tag_name": "app-v1.2.0", "name": "", "body": ""}], repo)["delete"] == []
+
+
+def test_hotfix_uses_live_translation(tmp_path, monkeypatch):
+    cfgp = _config(tmp_path)
+    root = tmp_path / "traduccion"
+    (root / "LIVE").mkdir(parents=True)
+    data = _ini([f"k{i}=valor {i}" for i in range(150)])
+    (root / "LIVE/global.ini").write_bytes(data)
+    (root / "LIVE/SplashScreen.png").write_bytes(_png(800, 450))
+    (root / "compatibilidad.json").write_text(json.dumps({"LIVE": ["4.10"], "HOTFIX": "auto"}))
+    rel = tmp_path / "releases.json"; rel.write_text("[]")
+    monkeypatch.setenv("MANIFEST_SIGNING_KEY", TEST_PRIV_B64)
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "dist"
+    assert build_release.main(["build", "--root", str(root), "--config", str(cfgp), "--out", str(out),
+                               "--releases-json", str(rel)]) == 0
+    m = parse_manifest((out / "manifest.json").read_bytes(), make_cfg())
+    assert m.channels["HOTFIX"].sha256 == m.channels["LIVE"].sha256
+    assert m.channels["HOTFIX"].game_versions == ("4.10",)
+    assert m.channels["HOTFIX"].extras == () and m.channels["LIVE"].extras
+    assert (out / "global_HOTFIX.ini").read_bytes() == data
+    assert "HOTFIX (misma que LIVE)" in (tmp_path / "notas.md").read_text(encoding="utf-8")
