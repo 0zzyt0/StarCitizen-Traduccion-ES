@@ -136,3 +136,13 @@ def test_build_release_includes_splash(tmp_path, monkeypatch):
     ex = m.channels["LIVE"].extras[0]
     assert ex.id == "splash" and ex.target == "EasyAntiCheat/SplashScreen.png"
     assert (out / "splash_LIVE.png").read_bytes() == png
+
+
+def test_compat_auto_from_pu_version(tmp_path):
+    f = tmp_path / "global.ini"
+    f.write_bytes(_ini(["a=b", "Frontend_PU_Version=Alpha 4.10.3: Asedio a Orison\\nTraducido por: 0zzyt0"]))
+    assert build_release.detect_game_version(f) == "4.10"
+    assert build_release.resolve_compat("auto", f) == ["4.10"]
+    assert build_release.resolve_compat(["5.0"], f) == ["5.0"]
+    f.write_bytes(_ini(["a=b", "Frontend_PU_Version,P=Alpha 5.0: X"]))
+    assert build_release.resolve_compat([], f) == ["5.0"]

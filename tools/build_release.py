@@ -29,6 +29,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 VER_RE = re.compile(r"^\d+(\.\d+){0,5}$")
+PU_VERSION_RE = re.compile(rb"^Frontend_PU_Version(?:,P)?=[^\r\n]*?(\d+)\.(\d+)", re.MULTILINE)
+
+
+def detect_game_version(ini: Path) -> str | None:
+    """Versión Mayor.Menor del juego leída de Frontend_PU_Version (p. ej. «Alpha 4.10.3: …» -> «4.10»)."""
+    m = PU_VERSION_RE.search(ini.read_bytes().lstrip(b"\xef\xbb\xbf"))
+    return f"{int(m.group(1))}.{int(m.group(2))}" if m else None
+
+
+def resolve_compat(value, ini: Path) -> list[str]:
+    """«auto» (o canal sin declarar) = versión detectada en el archivo; una lista explícita manda."""
+    if isinstance(value, list) and value:
+        return value
+    v = detect_game_version(ini)
+    return [v] if v else []
 
 
 def vtuple(v: str) -> tuple[int, ...]:
@@ -106,8 +121,10 @@ def build(a) -> int:
     channels = {}
     extra_files: dict[str, Path] = {}
     for ch, f in files.items():
+        gv = resolve_compat(compat.get(ch, "auto"), f)
+        print(f"{ch}: versiones del juego compatibles -> {', '.join(gv) or 'sin declarar'}")
         channels[ch] = {"asset": f"global_{ch}.ini", "size": f.stat().st_size, "sha256": sha256(f),
-                        "target": target, "game_versions": compat.get(ch, [])}
+                        "target": target, "game_versions": gv}
         for ex_id, fname in extra_sources.items():
             ep = root / ch / fname
             ex_target = config.get("extra_targets", {}).get(ex_id)

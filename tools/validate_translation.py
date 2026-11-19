@@ -162,6 +162,13 @@ def validate(root: Path, config: dict, referencia: Path | None, rep: Report) -> 
         entries = parse_ini(data, rep, label)
         if entries is None:
             continue
+        pu = next((v for k, v in entries.items() if k in ("Frontend_PU_Version", "Frontend_PU_Version,P")), None)
+        m = re.search(r"(\d+)\.(\d+)", pu or "")
+        if m:
+            rep.note(f"{ch}: versión del juego detectada {int(m.group(1))}.{int(m.group(2))} ({pu.split(':')[0]})")
+        else:
+            rep.warn(f"{label}: no se encuentra la versión en Frontend_PU_Version; la compatibilidad quedará "
+                     "«sin verificar» salvo que se declare en compatibilidad.json.", label)
         if len(entries) < int(rules["minimo_lineas"]):
             rep.error(f"{label}: solo {len(entries)} entradas; parece incompleto.", label)
         if rules.get("sin_tildes"):
@@ -203,6 +210,8 @@ def validate(root: Path, config: dict, referencia: Path | None, rep: Report) -> 
                 raise ValueError("debe ser un objeto")
             for ch, vers in data.items():
                 if ch.startswith("_"):
+                    continue
+                if vers == "auto":
                     continue
                 if ch not in config["channels"] or not isinstance(vers, list) or \
                         any(not isinstance(v, str) or not GAMEVER_RE.match(v) for v in vers):

@@ -69,8 +69,7 @@ Para cambiar la imagen basta con subir otra: no hace falta recompilar el gestor.
 1. Entra en la carpeta `traduccion/LIVE` del repositorio → **Add file → Upload files**.
 2. Arrastra tu `global.ini` (debe llamarse exactamente así).
 3. Repite con `traduccion/PTU` si toca.
-4. (Opcional) Edita `traduccion/NOTAS.md` con los cambios y `traduccion/compatibilidad.json` con las versiones
-   del juego.
+4. (Opcional) Edita `traduccion/NOTAS.md` con los cambios. La compatibilidad con el juego se calcula sola.
 5. **Commit changes** directamente en `main`.
 
 ### Opción B — con git
@@ -104,18 +103,17 @@ Los jugadores la recibirán la próxima vez que abran el RSI Launcher o cierren 
   `manifest.json`, `manifest.json.sig` y `SHA256SUMS.txt`.
 - En tu PC: abre el gestor → **Buscar ahora**: la columna *Disponible* muestra la versión nueva.
 
-## Compatibilidad con versiones del juego
+## Compatibilidad con versiones del juego (automática)
 
-`traduccion/compatibilidad.json`:
+No hay que tocar nada: con `"auto"` en `traduccion/compatibilidad.json` (valor por defecto), la versión del juego
+de cada canal se lee del propio `global.ini`, de la línea `Frontend_PU_Version`
+(«Alpha 4.10.3: …» → `4.10`, «Alpha 5.0: …» → `5.0`). Cuando LIVE pase a 5.0, basta con subir el `global.ini`
+nuevo: la publicación se marcará como 5.0 sola.
 
-```json
-{ "LIVE": ["4.3"], "PTU": ["4.4"] }
-```
-
-- `"4.3"` acepta 4.3.0, 4.3.1, 4.3.2…; `"4.3.2"` solo esa.
-- Lista vacía: «Compatibilidad no verificada» (se instala igualmente).
-- Si el juego del jugador no coincide, la actualización automática **se pausa** y se mantiene su traducción
+- `4.10` acepta 4.10.0, 4.10.1, 4.10.3…
+- Si el juego del jugador es de otra versión, la actualización automática **se pausa** y se mantiene su traducción
   actual; en el gestor puede instalarla a mano confirmando el aviso.
+- Para forzarlo a mano (raro), pon una lista: `{ "LIVE": ["4.10", "5.0"] }`.
 
 El gestor lee la versión del juego de `build_manifest.id` en la carpeta del canal; si no puede, muestra
 «Compatibilidad no verificada».
