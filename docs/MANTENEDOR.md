@@ -23,11 +23,12 @@ Hay dos tipos de publicación en el mismo repositorio, bien diferenciados en *Re
 | ⬇️ INSTALADOR — Gestor X.Y.Z (descarga aquí) | `vX.Y.Z` | `StarCitizen_Traduccion_ES_Setup.exe` (+ `.sha256`) | *Compilar instalador* | **Sí, siempre** |
 | 🔄 Traducción AAAA.M.D.N — actualización automática | `traduccion-vAAAA.M.D.N` | `global_<CANAL>.ini`, `splash_<CANAL>.png`, `manifest.json(.sig)`, `SHA256SUMS.txt` | *Publicar traducción* | Nunca |
 
-GitHub agrupa la página *Releases* por fecha (día) y, dentro del mismo día, ordena por **nombre de etiqueta**
-(`vX.Y.Z` va por encima de `traduccion-v…`). El workflow **Organizar releases** se ejecuta solo después de cada
-publicación: pone títulos y textos, marca el instalador como *Latest*, elimina las publicaciones antiguas
-`app-vX.Y.Z` y, si una traducción de otro día ha quedado encima, vuelve a crear la release del instalador (misma
-etiqueta y mismos archivos; se reinicia su contador de descargas) para que sea siempre la primera. El enlace fijo
+GitHub ordena la página *Releases* por la **fecha del commit** al que apunta cada etiqueta y, a igualdad, por
+**nombre de etiqueta** (`vX.Y.Z` va por encima de `traduccion-v…`). Por eso *Publicar traducción* asocia cada
+traducción al commit del instalador vigente: así el instalador queda siempre el primero. Las notas de cada
+traducción enlazan al commit real de sus archivos. El workflow **Organizar releases** se ejecuta solo después de
+cada publicación: pone títulos y textos, marca el instalador como *Latest* y elimina las publicaciones antiguas
+`app-vX.Y.Z`. El enlace fijo
 `https://github.com/0zzyt0/StarCitizen-Traduccion-ES/releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe`
 descarga siempre el instalador más reciente (es el botón del README). Los gestores buscan la traducción por su
 etiqueta `traduccion-v…`, no por «Latest».

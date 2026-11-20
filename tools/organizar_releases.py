@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Ordena la página Releases en dos grupos claros y deja el INSTALADOR siempre a primera vista.
 
-GitHub agrupa la lista de Releases por fecha (día) y, dentro del mismo día, ordena por el NOMBRE de la etiqueta
-de mayor a menor (comprobado: "v…" sale por encima de "traduccion-v…" del mismo día). Por eso:
+En la lista de Releases, con la misma fecha, GitHub ordena por el NOMBRE de la etiqueta de mayor a menor
+("v…" sale por encima de "traduccion-v…"). Por eso:
 
 - Instalador: etiqueta vX.Y.Z → siempre arriba. Título «⬇️ INSTALADOR — Gestor X.Y.Z (descarga aquí)»,
   marcado como «Latest» (portada del repositorio y .../releases/latest/download/StarCitizen_Traduccion_ES_Setup.exe).
@@ -10,8 +10,9 @@ de mayor a menor (comprobado: "v…" sale por encima de "traduccion-v…" del mi
 - Traducción: etiqueta traduccion-vAAAA.M.D.N → debajo. Título «🔄 Traducción … — actualización automática»,
   nunca «Latest», con un aviso al principio que enlaza al instalador.
 - Las publicaciones del instalador con el formato antiguo (app-vX.Y.Z) se eliminan cuando ya existe uno vX.Y.Z.
-- Si una traducción publicada otro día queda por encima del instalador, se vuelve a crear la release del
-  instalador (misma etiqueta y mismos archivos) para que sea de nuevo la primera.
+- GitHub ordena por la FECHA DEL COMMIT de la etiqueta (no por la de publicación) y, a igualdad, por nombre.
+  Por eso «Publicar traducción» cuelga cada traducción del commit del instalador vigente: nunca queda por
+  encima de él. Si aun así ocurre, aquí se deja un aviso.
 
 Uso (en GitHub Actions, con GH_TOKEN):  python tools/organizar_releases.py --repo OWNER/REPO
       Simulación sin cambios:           python tools/organizar_releases.py --repo OWNER/REPO --dry-run
@@ -24,8 +25,6 @@ import json
 import re
 import subprocess
 import sys
-import tempfile
-import time
 from pathlib import Path
 
 APP_PREFIX = "v"
@@ -159,42 +158,11 @@ def apply(repo: str, p: dict, dry: bool) -> None:
         print(f"Eliminar publicación antigua del instalador: {tag}")
         if not dry:
             gh("release", "delete", tag, "--repo", repo, "--yes", "--cleanup-tag")
-    tag = p.get("reraise")
-    if not tag:
-        print("El instalador ya es la primera publicación de la lista.")
-        return
-    print(f"Subir {tag} a la primera posición (se vuelve a crear la release con los mismos archivos).")
-    if dry:
-        return
-    reraise(repo, tag)
-
-
-def reraise(repo: str, tag: str) -> None:
-    info = json.loads(gh("release", "view", tag, "--repo", repo, "--json", "name,body,assets"))
-    expected = {a["name"] for a in info["assets"]}
-    with tempfile.TemporaryDirectory() as d:
-        gh("release", "download", tag, "--repo", repo, "-D", d)
-        files = sorted(str(f) for f in Path(d).iterdir())
-        if not files or {Path(f).name for f in files} != expected:
-            raise RuntimeError("No se descargaron todos los archivos del instalador; no se toca nada.")
-        notes = Path(d).parent / f"notas-{tag}.md"
-        notes.write_text(info["body"] or "", encoding="utf-8")
-        gh("release", "delete", tag, "--repo", repo, "--yes")  # la etiqueta se conserva
-        last = None
-        for attempt in range(5):
-            try:
-                gh("release", "create", tag, "--repo", repo, "--verify-tag", "--title", info["name"],
-                   "--notes-file", str(notes), "--latest", *files)
-                break
-            except RuntimeError as err:
-                last = err
-                time.sleep(5 * (attempt + 1))
-        else:
-            raise RuntimeError(f"No se pudo volver a crear {tag}: {last}")
-    first = json.loads(gh("api", f"repos/{repo}/releases?per_page=1"))[0]["tag_name"]
-    print(f"Primera publicación ahora: {first}")
-    if first != tag:
-        print(f"::warning::{tag} se ha vuelto a crear pero GitHub no lo muestra el primero.")
+    if p.get("reraise"):
+        print(f"::warning::{p['reraise']} no es la primera publicación de la lista. GitHub ordena por la fecha del "
+              "commit de la etiqueta: publica un instalador nuevo (sube __version__) para que vuelva arriba.")
+    else:
+        print("El instalador es la primera publicación de la lista.")
 
 
 def main(argv=None) -> int:

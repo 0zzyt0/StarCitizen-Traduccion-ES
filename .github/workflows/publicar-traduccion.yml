@@ -93,8 +93,16 @@ jobs:
           titulo="🔄 Traducción $version — actualización automática"
           if [ -n "$pre" ]; then titulo="🔄 Traducción $version — beta, actualización automática"; fi
           python -c "import sys; sys.path.insert(0,'tools'); import organizar_releases as o; print(o.translation_header('$REPO'))" > cabecera.md
-          cat cabecera.md notas.md > notas_release.md
-          gh release create "$tag" --repo "$REPO" --draft $pre --target "$GITHUB_SHA" \
+          { cat cabecera.md notas.md; echo; echo "Archivos de esta versión: commit [${GITHUB_SHA:0:7}](https://github.com/$REPO/commit/$GITHUB_SHA)."; } > notas_release.md
+          # GitHub ordena Releases por la fecha del commit de la etiqueta (y luego por nombre). La traducción se
+          # cuelga del commit del instalador vigente para que el instalador siga siendo siempre el primero.
+          inst="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          target="$GITHUB_SHA"
+          if [[ "$inst" == v* ]]; then
+            target="$(gh api "repos/$REPO/commits/$inst" --jq .sha)"
+            echo "La traducción se asocia al commit del instalador $inst ($target)."
+          fi
+          gh release create "$tag" --repo "$REPO" --draft $pre --target "$target" \
             --title "$titulo" --notes-file notas_release.md dist/*
           esperado=$(ls dist | wc -l)
           subidos=$(gh release view "$tag" --repo "$REPO" --json assets --jq '[.assets[] | select(.state=="uploaded")] | length')
