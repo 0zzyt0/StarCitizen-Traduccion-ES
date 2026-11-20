@@ -167,14 +167,16 @@ def test_organizar_releases_plan():
     assert "No hace falta descargar" in e["traduccion-v2026.11.19.2"]["body"]
     assert e["traduccion-v2026.11.19.2"]["body"].rstrip().endswith("Notas X")
     assert p["delete"] == ["app-v1.1.0"] and p["latest"] == "v1.3.0"
+    assert p["reraise"] == "v1.3.0"  # una traducción va primera en la lista: hay que subir el instalador
     assert "app-v1.1.0" not in e
     # Idempotente y sin duplicar la cabecera
     for r in rels:
         if r["tag_name"] in e:
             r["name"], r["body"] = e[r["tag_name"]]["name"], e[r["tag_name"]]["body"].replace("\n", "\r\n")
     rels = [r for r in rels if r["tag_name"] != "app-v1.1.0"]
+    rels.sort(key=lambda r: r["tag_name"] != "v1.3.0")  # tras volver a crearlo, el instalador va primero
     p2 = org.plan(rels, repo)
-    assert p2["edits"] == [] and p2["delete"] == []
+    assert p2["edits"] == [] and p2["delete"] == [] and p2["reraise"] is None
     # Sin instalador nuevo todavía: no se borra el antiguo
     assert org.plan([{"id": 1, "tag_name": "app-v1.2.0", "name": "", "body": ""}], repo)["delete"] == []
 
