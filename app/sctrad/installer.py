@@ -29,7 +29,8 @@ from .gamepaths import GameInstall, is_valid_channel_dir
 from .lock import FileLock
 from .manifest import ChannelEntry, ExtraEntry
 from .state import StateStore, now_iso
-from .usercfg import apply_settings, get_setting, revert_settings
+from .usercfg import CfgText, apply_settings, get_setting
+from .version_line import is_ours, read_label
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class Inspection:
     recorded_sha: str | None
     ours: bool
     foreign: bool
+    label: str | None
     missing_ours: bool
     user_cfg_exists: bool
     current_language: str | None
@@ -137,11 +139,13 @@ class Installer:
         exists = gpath.is_file()
         sha = sha256_file(gpath) if exists else None
         ours = bool(exists and ((recorded and sha == recorded) or (expected_sha and sha == expected_sha)))
+        label = read_label(gpath) if exists else None
+        family = is_ours(label)  # lleva la línea «Traduccion 0zzyt0 …»: es esta traducción (otra versión)
         cfg_exists = cpath.is_file()
         lang = get_setting(cpath.read_bytes(), "g_language") if cfg_exists else None
         return Inspection(
             global_path=gpath, user_cfg_path=cpath, global_exists=exists, global_sha=sha,
-            recorded_sha=recorded, ours=ours, foreign=bool(exists and not ours),
+            recorded_sha=recorded, ours=ours, foreign=bool(exists and not ours and not family), label=label,
             missing_ours=bool(recorded and not exists), user_cfg_exists=cfg_exists,
             current_language=lang,
             locked=not (is_writable_now(gpath) and is_writable_now(cpath)),
@@ -452,38 +456,44 @@ class Installer:
 
     # --------------------------------------------------------- desinstalar
     def uninstall(self, install: GameInstall) -> list[str]:
-        """Quita la traducción y deja el juego como estaba. Devuelve avisos (si algo no se tocó)."""
+        """Quita la traducción y deja el juego en INGLÉS (idioma de serie).
+
+        - Borra data/Localization/<idioma>/global.ini (y la carpeta si queda vacía).
+        - Quita de user.cfg la línea g_language con el idioma español (el juego vuelve al inglés) y la de
+          g_languageAudio si la añadió el gestor. El resto de user.cfg no se toca.
+        - Devuelve la pantalla de carga de Easy Anti-Cheat que había antes de instalar la traducción.
+        Antes se guarda una copia de seguridad para poder deshacerlo.
+        """
         notes: list[str] = []
         with self.op_lock:
-            _, gpath, cpath = self._paths(install)
             if self.is_game_running():
                 raise GameRunningError("Star Citizen está abierto. Ciérralo y vuelve a intentarlo.")
+            channel_dir, gpath, cpath = self._paths(install)
             rec = self._record(install) or {}
-            insp = self.inspect(install)
-            original = None
-            if rec.get("original_backup"):
-                original = next((b for b in self.list_backups(install) if b.id == rec["original_backup"]), None)
+            files = {"global.ini": (gpath, self.cfg.translation_rel_path), "user.cfg": (cpath, "user.cfg")}
             try:
-                if insp.global_exists and insp.ours:
-                    if original:
-                        problems = self._restore_files(original.path, {"global.ini": gpath})
-                        if problems:
-                            raise InstallError("; ".join(problems))
-                    else:
-                        gpath.unlink()
-                elif insp.global_exists:
-                    notes.append("El global.ini actual no coincide con el instalado por el gestor; no se ha borrado.")
-                notes += self.restore_extras(install)
-                if cpath.is_file() and rec.get("user_cfg_previous"):
-                    raw = cpath.read_bytes()
-                    new = revert_settings(raw, self.cfg.user_cfg_settings, rec["user_cfg_previous"])
-                    if new != raw:
-                        atomic_write_bytes(cpath, new)
+                if gpath.exists() or cpath.exists():
+                    self._create_backup(install, "auto", rec.get("installed_version"), files)
+                if gpath.exists():
+                    gpath.unlink()
                 try:
                     if gpath.parent.is_dir() and not any(gpath.parent.iterdir()):
                         gpath.parent.rmdir()
                 except OSError:
                     pass
+                notes += self.restore_extras(install)
+                if cpath.is_file():
+                    raw = cpath.read_bytes()
+                    cfg_text = CfgText(raw)
+                    lang = (cfg_text.get("g_language") or "").lower()
+                    if lang == self.cfg.user_cfg_settings.get("g_language", "").lower() or lang.startswith("spanish"):
+                        cfg_text.remove("g_language")
+                    prev = rec.get("user_cfg_previous") or {}
+                    if "g_languageAudio" in prev and prev["g_languageAudio"] is None:
+                        cfg_text.remove("g_languageAudio", only_value=self.cfg.user_cfg_settings.get("g_languageAudio"))
+                    new = cfg_text.to_bytes()
+                    if new != raw:
+                        atomic_write_bytes(cpath, new)
             except PermissionNeededError:
                 raise
             except PermissionError as e:
@@ -494,5 +504,6 @@ class Installer:
             with self.store.transaction() as s:
                 s["installs"].pop(install.key, None)
             self.store.add_history(install.path, install.channel, "desinstalar", rec.get("installed_version"), "ok",
-                                   "Traducción desinstalada" + (f" ({'; '.join(notes)})" if notes else ""))
+                                   "Traducción desinstalada: el juego vuelve al inglés"
+                                   + (f" ({'; '.join(notes)})" if notes else ""))
         return notes

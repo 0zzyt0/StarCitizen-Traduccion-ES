@@ -47,11 +47,12 @@ def test_validation_detects_problems(tmp_path):
     cfgp = _config(tmp_path)
     root = tmp_path / "traduccion"
     (root / "LIVE").mkdir(parents=True)
-    lines = [f"k{i}=valor {i}" for i in range(150)]
+    lines = [f"k{i}=valor {i}" for i in range(150)] + ["Personal_Translation_Version=Traduccion 0zzyt0 LIVE v4.10"]
     (root / "LIVE/global.ini").write_bytes(_ini(lines))
     ref = tmp_path / "referencia"
     (ref / "LIVE").mkdir(parents=True)
-    (ref / "LIVE/global.ini").write_bytes(_ini([f"k{i}=value {i}" for i in range(150)]))
+    (ref / "LIVE/global.ini").write_bytes(_ini([f"k{i}=value {i}" for i in range(150)]
+                                               + ["Personal_Translation_Version=x"]))
     assert validate_translation.main(["--root", str(root), "--config", str(cfgp), "--referencia", str(ref)]) == 0
     bad = lines + ["k1=duplicada", "linea sin igual", "k200=canción"]
     (root / "LIVE/global.ini").write_bytes(_ini(bad))
@@ -61,7 +62,8 @@ def test_validation_detects_problems(tmp_path):
     assert "repetida" in text and "CLAVE=valor" in text and "tildes" in text
     # Marcador protegido perdido
     (ref / "LIVE/global.ini").write_bytes(_ini([f"k{i}=value {i}" for i in range(149)] + ["k149=Go to ~mission(Location) now\\n"]))
-    (root / "LIVE/global.ini").write_bytes(_ini([f"k{i}=valor {i}" for i in range(149)] + ["k149=Ve ahora"]))
+    (root / "LIVE/global.ini").write_bytes(_ini([f"k{i}=valor {i}" for i in range(149)] + ["k149=Ve ahora",
+                                                "Personal_Translation_Version=Traduccion 0zzyt0 LIVE v4.10"]))
     rep = validate_translation.Report()
     validate_translation.validate(root, json.loads(cfgp.read_text()), ref, rep)
     assert any("marcadores" in e for e in rep.errors)
@@ -120,7 +122,8 @@ def test_build_release_includes_splash(tmp_path, monkeypatch):
     cfgp = _config(tmp_path)
     root = tmp_path / "traduccion"
     (root / "LIVE").mkdir(parents=True)
-    (root / "LIVE/global.ini").write_bytes(_ini([f"k{i}=valor {i}" for i in range(150)]))
+    (root / "LIVE/global.ini").write_bytes(_ini([f"k{i}=valor {i}" for i in range(150)]
+                                                + ["Personal_Translation_Version=Traduccion 0zzyt0 LIVE v4.10"]))
     png = _png(800, 450)
     (root / "LIVE/SplashScreen.png").write_bytes(png)
     rep = validate_translation.Report()
@@ -208,3 +211,32 @@ def test_hotfix_uses_live_translation(tmp_path, monkeypatch):
     assert m.channels["HOTFIX"].extras[0].asset == "splash_HOTFIX.png"
     assert m.channels["HOTFIX"].sha256 == m.channels["LIVE"].sha256
     assert "HOTFIX (misma que LIVE)" in (tmp_path / "notas.md").read_text(encoding="utf-8")
+
+
+def test_version_line_required_and_used(tmp_path, monkeypatch):
+    cfgp = _config(tmp_path)
+    root = tmp_path / "traduccion"
+    (root / "PTU").mkdir(parents=True)
+    base = [f"k{i}=valor {i}" for i in range(150)] + ["Frontend_PU_Version=Alpha 4.10.3: viejo"]
+    (root / "PTU/global.ini").write_bytes(_ini(base))
+    rep = validate_translation.Report()
+    validate_translation.validate(root, json.loads(cfgp.read_text()), None, rep)
+    assert any("falta la línea" in e for e in rep.errors)
+    (root / "PTU/global.ini").write_bytes(_ini(base + ["Personal_Translation_Version=Traduccion 0zzyt0 LIVE v5.0"]))
+    rep = validate_translation.Report()
+    validate_translation.validate(root, json.loads(cfgp.read_text()), None, rep)
+    assert any("dice canal LIVE" in e for e in rep.errors)
+    (root / "PTU/global.ini").write_bytes(_ini(base + ["Personal_Translation_Version=Traducción 0zzyt0 PTU v5.0"]))
+    (root / "compatibilidad.json").write_text(json.dumps({"PTU": ["4.10"]}))
+    rep = validate_translation.Report()
+    validate_translation.validate(root, json.loads(cfgp.read_text()), None, rep)
+    assert not rep.errors and any("se usará la de la línea" in w for w in rep.warnings)
+    rel = tmp_path / "releases.json"; rel.write_text("[]")
+    monkeypatch.setenv("MANIFEST_SIGNING_KEY", TEST_PRIV_B64)
+    monkeypatch.chdir(tmp_path)
+    out = tmp_path / "dist"
+    assert build_release.main(["build", "--root", str(root), "--config", str(cfgp), "--out", str(out),
+                               "--releases-json", str(rel)]) == 0
+    m = parse_manifest((out / "manifest.json").read_bytes(), make_cfg())
+    assert m.channels["PTU"].label == "Traducción 0zzyt0 PTU v5.0"
+    assert m.channels["PTU"].game_versions == ("5.0",)  # la línea manda sobre Frontend_PU_Version y la lista

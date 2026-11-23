@@ -35,6 +35,9 @@ ACCENTS_RE = re.compile(r"[áéíóúÁÉÍÓÚ]")
 TOKEN_RE = re.compile(r"~\w+\([^)]*\)|<[^<>\s][^<>]*>|%(?:ls|s|d|i|u|f|S|\.\d+f)|\{[^{}]*\}|\\n")
 GAMEVER_RE = re.compile(r"^(\*|\d{1,4}(\.\d{1,6}){0,3})$")
 KEY_RE = re.compile(r"^[^\s=]+$")
+LABEL_KEY = "Personal_Translation_Version"
+LABEL_RE = re.compile(r"^Traducci(?:o|ó)n\s+0zzyt0\s+(LIVE|HOTFIX|PTU|EPTU|TECH-PREVIEW)\s+v(\d+(?:\.\d+){1,3})\s*$",
+                      re.IGNORECASE)
 # Archivos extra opcionales por canal: nombre en traduccion/<CANAL>/ -> id en extra_targets
 EXTRA_SOURCES = {"splash": "SplashScreen.png"}
 PNG_SIG = b"\x89PNG\r\n\x1a\n"
@@ -138,6 +141,10 @@ def validate(root: Path, config: dict, referencia: Path | None, rep: Report) -> 
         except ValueError as e:
             rep.error(f"validacion.json no es JSON válido: {e}", str(rules_file))
     max_bytes = int(config.get("max_payload_bytes", 200 * 1024 * 1024))
+    try:
+        compat_decl = json.loads((root / "compatibilidad.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        compat_decl = {}
     channels_found: list[str] = []
     sources = config.get("publish_channel_sources") or {}
     for ch in config["channels"]:
@@ -171,17 +178,27 @@ def validate(root: Path, config: dict, referencia: Path | None, rep: Report) -> 
         entries = parse_ini(data, rep, label)
         if entries is None:
             continue
-        pu = next((v for k, v in entries.items() if k in ("Frontend_PU_Version", "Frontend_PU_Version,P")), None)
-        m = re.search(r"(\d+)\.(\d+)", pu or "")
-        if m:
-            rep.note(f"{ch}: versión del juego detectada {int(m.group(1))}.{int(m.group(2))} ({pu.split(':')[0]})")
+        ver_line = next((v for k, v in entries.items() if k in (LABEL_KEY, LABEL_KEY + ",P")), None)
+        lm = LABEL_RE.match((ver_line or "").strip())
+        if ver_line is None:
+            rep.error(f"{label}: falta la línea «{LABEL_KEY}=Traduccion 0zzyt0 {ch} vX.Y». El gestor la usa para "
+                      "saber qué versión tiene instalada cada jugador.", label)
+        elif not lm:
+            rep.error(f"{label}: la línea {LABEL_KEY} no tiene el formato «Traduccion 0zzyt0 <CANAL> vX.Y» "
+                      f"(tiene: «{ver_line.strip()}»).", label)
         else:
-            rep.warn(f"{label}: no se encuentra la versión en Frontend_PU_Version; la compatibilidad quedará "
-                     "«sin verificar» salvo que se declare en compatibilidad.json.", label)
+            if lm.group(1).upper() != ch:
+                rep.error(f"{label}: la línea {LABEL_KEY} dice canal {lm.group(1).upper()} pero el archivo está "
+                          f"en la carpeta {ch}.", label)
+            rep.note(f"{ch}: {ver_line.strip()} (versión del juego {lm.group(2)})")
+            declared = compat_decl.get(ch)
+            if isinstance(declared, list) and declared and lm.group(2) not in declared:
+                rep.warn(f"{ch}: compatibilidad.json dice {declared} pero la línea dice v{lm.group(2)}; "
+                         "se usará la de la línea.")
         if len(entries) < int(rules["minimo_lineas"]):
             rep.error(f"{label}: solo {len(entries)} entradas; parece incompleto.", label)
         if rules.get("sin_tildes"):
-            bad = [k for k, v in entries.items() if ACCENTS_RE.search(v)]
+            bad = [k for k, v in entries.items() if ACCENTS_RE.search(v) and not k.startswith(LABEL_KEY)]
             if bad:
                 rep.error(f"{label}: {len(bad)} valor(es) con tildes (regla «sin tildes»): {', '.join(bad[:15])}", label)
         ref = (referencia / ch / "global.ini") if referencia else None

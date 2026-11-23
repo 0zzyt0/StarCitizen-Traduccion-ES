@@ -28,6 +28,7 @@ from .net import Http
 from .procs import is_game_running
 from .state import StateStore, now_iso
 from .version import compare_versions, is_newer
+from .version_line import is_ours
 
 log = logging.getLogger(__name__)
 
@@ -61,6 +62,14 @@ class InstallStatus:
     state: str
     entry: ChannelEntry | None
     held: bool = False
+    installed_label: str | None = None   # Personal_Translation_Version del global.ini instalado
+    available_label: str | None = None   # Personal_Translation_Version del global.ini publicado
+    installed_exists: bool = False
+
+    @property
+    def needs_action(self) -> bool:
+        """True si el botón ACTUALIZAR tiene algo que hacer en este canal."""
+        return self.entry is not None and self.state in (ST_UPDATE, ST_MISSING, ST_NOT_INSTALLED, ST_FOREIGN)
 
     @property
     def managed(self) -> bool:
@@ -228,7 +237,13 @@ class UpdateService:
                              and self.installer.extras_needing_repair(gi, entry))
         held = bool(rec and rec.get("hold_until_newer_than") and available
                      and not is_newer(available, rec["hold_until_newer_than"]))
-        if insp and insp.foreign:
+        installed_label = insp.label if insp else None
+        available_label = entry.label if entry else None
+        label_changed = bool(available_label and installed_label != available_label
+                             and insp and insp.global_sha != entry.sha256)
+        if insp and insp.global_exists and not insp.ours and is_ours(installed_label) and entry:
+            state = ST_UPDATE  # nuestra traducción, pero otra versión (p. ej. copiada a mano)
+        elif insp and insp.foreign:
             state = ST_FOREIGN
         elif insp and insp.missing_ours:
             state = ST_MISSING
@@ -238,13 +253,14 @@ class UpdateService:
             state = ST_UNKNOWN
         elif entry is None:
             state = ST_NO_CHANNEL
-        elif is_newer(available, installed):
+        elif is_newer(available, installed) or label_changed:
             state = ST_UPDATE
         elif extras_broken:
             state = ST_MISSING
         else:
             state = ST_UP_TO_DATE
-        return InstallStatus(gi, rec, installed, available, compat, state, entry, held)
+        return InstallStatus(gi, rec, installed, available, compat, state, entry, held,
+                             installed_label, available_label, bool(insp and insp.global_exists))
 
     def check(self, include_app: bool = True) -> CheckResult:
         rel, man, offline, err = self.fetch_release()
@@ -470,6 +486,37 @@ class UpdateService:
                     f"{gi.channel}: {e} Se mantiene la versión anterior.", "warning"))
                 return out
         return []
+
+    def adopt_identical(self, res: "CheckResult") -> bool:
+        """Registra como gestionadas las instalaciones cuyo global.ini ya es idéntico al publicado (p. ej. copiado
+        a mano) y con el idioma español activo. No escribe nada en el juego. Devuelve True si registró alguna."""
+        if not res.manifest:
+            return False
+        want = (self.cfg.user_cfg_settings.get("g_language") or "").lower()
+        changed = False
+        for st in res.statuses:
+            if st.record or not st.entry or not st.installed_exists:
+                continue
+            try:
+                insp = self.installer.inspect(st.install, st.entry.sha256)
+            except SCTradError:
+                continue
+            if insp.global_sha != st.entry.sha256 or (insp.current_language or "").lower() != want:
+                continue
+            with self.store.transaction() as s:
+                s["installs"][st.install.key] = {
+                    "path": st.install.path, "channel": st.install.channel, "managed": True,
+                    "installed_version": res.manifest.version, "installed_at": now_iso(),
+                    "files": {self.cfg.translation_rel_path: st.entry.sha256}, "extras": {},
+                    "user_cfg_previous": {}, "pending_version": None, "attention": None,
+                }
+            self.store.add_history(st.install.path, st.install.channel, "registrar", res.manifest.version, "ok",
+                                   "Traducción ya instalada: queda registrada para actualizarse sola")
+            changed = True
+        if changed:
+            snap = self.store.snapshot()
+            res.statuses = [self.status_for(st.install, res.manifest, snap) for st in res.statuses]
+        return changed
 
     def channel_rows(self, statuses: list[InstallStatus], manifest: Manifest | None = None
                      ) -> list[InstallStatus | MissingChannel]:

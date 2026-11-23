@@ -120,12 +120,24 @@ Los jugadores la recibirán la próxima vez que abran el RSI Launcher o cierren 
   `manifest.json`, `manifest.json.sig` y `SHA256SUMS.txt`.
 - En tu PC: abre el gestor → **Buscar ahora**: la columna *Disponible* muestra la versión nueva.
 
-## Compatibilidad con versiones del juego
+## Línea de versión (obligatoria) y compatibilidad con el juego
 
-Antes de cada publicación, el mantenedor **confirma** a qué versión del juego corresponde cada `global.ini` y se
-escribe en `traduccion/compatibilidad.json`, por ejemplo `{ "LIVE": ["4.10"], "PTU": ["5.0"] }`.
-No se usa `Frontend_PU_Version` como fuente fiable porque CIG no siempre la actualiza. Si un canal queda en
-`"auto"`, la herramienta la lee de esa línea como respaldo y deja un aviso en el registro de Actions.
+Cada `global.ini` publicado debe llevar la línea:
+
+```
+Personal_Translation_Version=Traduccion 0zzyt0 <CANAL> v<X.Y>
+```
+
+por ejemplo `Traduccion 0zzyt0 LIVE v4.10` o `Traduccion 0zzyt0 PTU v5.0` (vale «Traduccion» o «Traducción»).
+El mantenedor verifica a qué versión del juego corresponde antes de publicar. Esa línea:
+
+- es lo que el gestor muestra como versión **instalada** y **disponible** de cada canal;
+- decide la compatibilidad con el juego (manda sobre `compatibilidad.json` y sobre `Frontend_PU_Version`, que CIG no
+  siempre actualiza);
+- la exige la validación: sin ella, con otro formato o con un canal distinto de la carpeta, no se publica.
+
+El gestor también detecta actualizaciones aunque la línea no cambie (corrección de textos dentro de la misma
+versión del juego), porque compara el contenido publicado (SHA-256).
 
 - `4.10` acepta 4.10.0, 4.10.1, 4.10.3…
 - Si el juego del jugador es de otra versión, la actualización automática **se pausa** y se mantiene su traducción
@@ -206,7 +218,8 @@ app/sctrad/service.py       orquestación y modo segundo plano
 app/sctrad/scheduler.py     Programador de tareas de Windows (arranca el vigilante al iniciar sesión)
 app/sctrad/watcher.py       vigilante: detecta la apertura del RSI Launcher y el cierre de StarCitizen.exe
 app/sctrad/elevate.py       reintento con permisos de administrador (UAC)
-app/sctrad/gui/             interfaz PySide6 (asistente, gestor, notificaciones)
+app/sctrad/gui/             interfaz PySide6 (ventana única ACTUALIZAR/DESINSTALAR, notificaciones)
+app/sctrad/version_line.py  lectura de la línea Personal_Translation_Version
 tools/validate_translation.py, tools/build_release.py   herramientas del workflow de publicación
 installer/                  PyInstaller (.spec) e Inno Setup (.iss)
 .github/workflows/          pruebas, publicar traducción, compilar instalador

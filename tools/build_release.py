@@ -32,14 +32,33 @@ VER_RE = re.compile(r"^\d+(\.\d+){0,5}$")
 PU_VERSION_RE = re.compile(rb"^Frontend_PU_Version(?:,P)?=[^\r\n]*?(\d+)\.(\d+)", re.MULTILINE)
 
 
+LABEL_LINE_RE = re.compile(rb"(?:^|\n)Personal_Translation_Version(?:,P)?=([^\r\n]{0,200})")
+LABEL_RE = re.compile(r"^Traducci(?:o|ó)n\s+0zzyt0\s+(LIVE|HOTFIX|PTU|EPTU|TECH-PREVIEW)\s+v(\d+(?:\.\d+){1,3})\s*$",
+                      re.IGNORECASE)
+
+
+def read_label(ini: Path) -> str | None:
+    """Valor de Personal_Translation_Version (p. ej. «Traduccion 0zzyt0 PTU v5.0»)."""
+    m = LABEL_LINE_RE.search(ini.read_bytes().lstrip(b"\xef\xbb\xbf"))
+    return m.group(1).decode("utf-8", errors="replace").strip() if m else None
+
+
 def detect_game_version(ini: Path) -> str | None:
-    """Versión Mayor.Menor del juego leída de Frontend_PU_Version (p. ej. «Alpha 4.10.3: …» -> «4.10»)."""
+    """Versión del juego: primero la línea Personal_Translation_Version (la que verifica el mantenedor,
+    «… PTU v5.0» -> «5.0»); si no está, Frontend_PU_Version («Alpha 4.10.3: …» -> «4.10»)."""
+    m = LABEL_RE.match(read_label(ini) or "")
+    if m:
+        return m.group(2)
     m = PU_VERSION_RE.search(ini.read_bytes().lstrip(b"\xef\xbb\xbf"))
     return f"{int(m.group(1))}.{int(m.group(2))}" if m else None
 
 
 def resolve_compat(value, ini: Path) -> list[str]:
-    """«auto» (o canal sin declarar) = versión detectada en el archivo; una lista explícita manda."""
+    """Versión del juego compatible. Manda la línea Personal_Translation_Version (la verifica el mantenedor);
+    si el archivo no la tiene, una lista explícita de compatibilidad.json; si tampoco, Frontend_PU_Version."""
+    m = LABEL_RE.match(read_label(ini) or "")
+    if m:
+        return [m.group(2)]
     if isinstance(value, list) and value:
         return value
     v = detect_game_version(ini)
@@ -137,6 +156,9 @@ def build(a) -> int:
         print(f"{ch}: versiones del juego compatibles -> {', '.join(gv) or 'sin declarar'}")
         channels[ch] = {"asset": f"global_{ch}.ini", "size": f.stat().st_size, "sha256": sha256(f),
                         "target": target, "game_versions": gv}
+        label = read_label(f)
+        if label:
+            channels[ch]["label"] = label[:120]
         for ex_id, fname in extra_sources.items():
             ep = root / ch / fname  # la pantalla de carga es siempre la propia del canal (HOTFIX tiene la suya)
             ex_target = config.get("extra_targets", {}).get(ex_id)
@@ -217,13 +239,14 @@ def build(a) -> int:
     lines = [f"Traducción al español de Star Citizen — versión {version}", ""]
     if notes:
         lines += [notes, ""]
-    lines.append("| Canal | Versiones del juego | Entradas | SHA-256 |")
-    lines.append("|---|---|---|---|")
+    lines.append("| Canal | Versión de la traducción | Versiones del juego | Entradas | SHA-256 |")
+    lines.append("|---|---|---|---|---|")
     for ch, f in files.items():
         n = sum(1 for line in f.read_bytes().split(b"\n") if b"=" in line)
         gv = ", ".join(channels[ch]["game_versions"]) or "sin declarar"
         alias = f" (misma que {sources[ch]})" if ch in sources else ""
-        lines.append(f"| {ch}{alias} | {gv} | {n} | `{channels[ch]['sha256'][:16]}…` |")
+        etiqueta = channels[ch].get("label", "—")
+        lines.append(f"| {ch}{alias} | {etiqueta} | {gv} | {n} | `{channels[ch]['sha256'][:16]}…` |")
     if extra_files:
         lines += ["", "Incluye la pantalla de carga de Easy Anti-Cheat de cada canal (indica que la traducción "
                       "está instalada). El gestor guarda la original y la restaura al desinstalar."]

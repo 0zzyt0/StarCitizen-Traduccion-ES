@@ -57,6 +57,7 @@ class ChannelEntry:
     target: str
     game_versions: tuple[str, ...]
     extras: tuple[ExtraEntry, ...] = ()
+    label: str | None = None   # valor de Personal_Translation_Version del archivo publicado
 
 
 @dataclass(frozen=True)
@@ -148,7 +149,10 @@ def parse_manifest(raw: bytes, cfg: AppConfig, expected_version: str | None = No
                 raise ManifestError(f"Destino de archivo extra no permitido para el canal {ch}: {e_target!r}.")
             seen_assets.add(e_asset)
             extras.append(ExtraEntry(ex_id, e_asset, e_size, e_sha, e_target))
-        channels[ch] = ChannelEntry(ch, asset, size, sha, target, tuple(gv), tuple(extras))
+        label = entry.get("label")
+        if not isinstance(label, str) or not label.strip() or len(label) > 120 or any(c in label for c in "\r\n"):
+            label = None
+        channels[ch] = ChannelEntry(ch, asset, size, sha, target, tuple(gv), tuple(extras), label)
     if not channels:
         raise ManifestError("La publicación no contiene ningún canal compatible con este gestor.")
     notes = data.get("notes", "")

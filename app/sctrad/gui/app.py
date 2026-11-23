@@ -14,9 +14,8 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QDialog, QDialogButtonBo
 from .. import scheduler
 from ..errors import SCTradError
 from ..service import Notice, UpdateService
-from .manager import ManagerWindow
+from .simple import SimpleWindow
 from .theme import app_icon, apply_theme
-from .wizard import InstallWizard
 
 log = logging.getLogger(__name__)
 
@@ -42,18 +41,7 @@ def run_gui(service: UpdateService, force_wizard: bool = False) -> int:
     if not lock.tryLock(100):
         QMessageBox.information(None, "Traducción Star Citizen", "El gestor de la traducción ya está abierto.")
         return 0
-    try:
-        scheduler.ensure_current(service)
-    except Exception:  # noqa: BLE001
-        log.exception("No se pudo actualizar la tarea programada")
-    first = force_wizard or not service.store.settings().get("first_run_done")
-    if first:
-        wiz = InstallWizard(service, first_run=True)
-        wiz.exec()  # si se cancela, la próxima vez se vuelve a mostrar el asistente
-        if not wiz.open_manager:
-            lock.unlock()
-            return 0
-    win = ManagerWindow(service)
+    win = SimpleWindow(service)
     win.show()
     rc = app.exec()
     lock.unlock()
@@ -125,7 +113,7 @@ def run_uninstall_cleanup(service: UpdateService) -> int:
     lbl = QLabel("Se va a desinstalar el gestor de la traducción. La comprobación automática ya se ha eliminado.")
     lbl.setWordWrap(True)
     lay.addWidget(lbl)
-    chk_game = QCheckBox("Quitar también la traducción del juego y dejarlo como estaba"
+    chk_game = QCheckBox("Quitar también la traducción del juego (vuelve al inglés)"
                          + (f" ({', '.join(g.channel for g in managed)})" if managed else ""))
     chk_game.setChecked(True)
     chk_game.setEnabled(bool(managed))

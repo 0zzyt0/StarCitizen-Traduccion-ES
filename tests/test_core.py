@@ -282,9 +282,10 @@ def test_foreign_file_needs_confirmation(tmp_path, cfg):
         _install_all(svc, res)
     _install_all(svc, res, allow_foreign=True)
     assert g.read_bytes() == ini_bytes()
-    # Desinstalar devuelve la otra traducción original.
+    # Desinstalar deja el juego en inglés (sin global.ini en español), con copia de seguridad.
     svc.uninstall_one(res.statuses[0].install)
-    assert g.read_bytes() == b"otra traduccion"
+    assert not g.exists()
+    assert any(b.kind == "auto" for b in svc.installer.list_backups(res.statuses[0].install))
 
 
 def test_identical_manual_copy_is_adopted(tmp_path, cfg):
@@ -453,3 +454,57 @@ def test_hotfix_channel_detected(tmp_path, cfg):
     make_game(tmp_path, "HOTFIX", "4.10.0")
     found = detect_installs(cfg, extra_roots=[tmp_path / "StarCitizen"])
     assert [g.channel for g in found] == ["HOTFIX"]
+
+
+def test_uninstall_leaves_english_even_with_preexisting_spanish(tmp_path, cfg):
+    live = make_game(tmp_path / "game", "LIVE", user_cfg=b"g_language = spanish_(spain)\r\nr_DisplayInfo = 2\r\n")
+    g = live / "data/Localization/spanish_(spain)/global.ini"
+    g.parent.mkdir(parents=True)
+    g.write_bytes(b"traduccion antigua puesta a mano")
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes()})
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    _install_all(svc, svc.check(), allow_foreign=True)
+    svc.uninstall_one(svc.known_installs()[0])
+    assert not g.exists() and not g.parent.exists()
+    assert get_setting((live / "user.cfg").read_bytes(), "g_language") is None
+    assert b"r_DisplayInfo = 2" in (live / "user.cfg").read_bytes()
+
+
+def test_label_drives_update_state(tmp_path, cfg):
+    from sctrad.service import ST_UPDATE
+    live = make_game(tmp_path / "game", "LIVE")
+    old = ini_bytes("A=1\r\nPersonal_Translation_Version=Traduccion 0zzyt0 LIVE v4.9\r\n")
+    new = ini_bytes("A=2\r\nPersonal_Translation_Version=Traduccion 0zzyt0 LIVE v4.10\r\n")
+    g = live / "data/Localization/spanish_(spain)/global.ini"
+    g.parent.mkdir(parents=True)
+    g.write_bytes(old)  # traducción nuestra copiada a mano (sin registro del gestor)
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": new})
+    data = json.loads(small[cfg.manifest_asset])
+    data["channels"]["LIVE"]["label"] = "Traduccion 0zzyt0 LIVE v4.10"
+    from sctrad.manifest import sign_manifest
+    from conftest import TEST_PRIV_B64
+    raw = json.dumps(data).encode()
+    small[cfg.manifest_asset] = raw
+    small[cfg.manifest_signature_asset] = sign_manifest(raw, TEST_PRIV_B64)
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    st = svc.check().statuses[0]
+    assert st.state == ST_UPDATE and st.installed_label.endswith("LIVE v4.9") and st.available_label.endswith("v4.10")
+    assert st.needs_action
+    svc.install_one(st, *(lambda r: (r.release, r.manifest))(svc.check()))
+    st2 = svc.check().statuses[0]
+    assert st2.state == ST_UP_TO_DATE and st2.installed_label == st2.available_label and not st2.needs_action
+
+
+def test_identical_manual_copy_is_adopted_without_writing(tmp_path, cfg):
+    live = make_game(tmp_path / "game", "LIVE", user_cfg=b"g_language = spanish_(spain)\r\n")
+    g = live / "data/Localization/spanish_(spain)/global.ini"
+    g.parent.mkdir(parents=True)
+    g.write_bytes(ini_bytes())
+    rel, small, routes = build_release(cfg, "2026.11.19.1", {"LIVE": ini_bytes()})
+    svc = _service(tmp_path, cfg, FakeClient(rel, small), routes)
+    res = svc.check()
+    assert res.statuses[0].needs_action
+    mtime = g.stat().st_mtime_ns
+    assert svc.adopt_identical(res)
+    assert res.statuses[0].state == ST_UP_TO_DATE and not res.statuses[0].needs_action
+    assert g.stat().st_mtime_ns == mtime
