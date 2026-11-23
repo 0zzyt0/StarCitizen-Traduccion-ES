@@ -11,5 +11,5 @@
 # - Para quitar el aviso, deja solo estas líneas con #.
 #
 # Puedes editarlo desde la web de GitHub (icono del lápiz). Guardarlo no publica ninguna traducción.
-[PTU] TRABAJANDO EN LA VERSION PTU 5.0
-NUEVA TRADUCCION 23-11 PARA LIVE, PTU Y HOTFIX: PULSA ACTUALIZAR (BOTON VERDE) PARA BAJARTE LA ULTIMA VERSION
+[PTU] LA VERSION 5.0 SIGUE EN DESARROLLO
+[LIVE] ACTUALIZADA A 23/11/2026
