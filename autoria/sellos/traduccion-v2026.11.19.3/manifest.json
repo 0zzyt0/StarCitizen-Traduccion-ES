@@ -1,0 +1,61 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.19.3",
+ "published_at": "2026-11-19T16:18:00Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Canal HOTFIX: ahora también recibe la traducción (la misma que LIVE) con su pantalla de carga verde de Easy Anti-Cheat.\n- LIVE y HOTFIX: Alpha 4.10.3 (Asedio a Orison). Pantallas de carga: LIVE azul, HOTFIX verde.\n- PTU: Alpha 5.0. Pantalla de carga violeta.",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12044341,
+   "sha256": "88987278117a60fc1f4af7369162df9df69102ffdeda6879269bb0f9a5195a56",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "extras": {
+    "splash": {
+     "asset": "splash_LIVE.png",
+     "size": 447231,
+     "sha256": "f6bf1abecbf14c0855eeb20e9707e5695eb8d8da4175280fbc809005fee6c1f5",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12044338,
+   "sha256": "549d183bb30f50d34fab62b772bc6b5360a727d7a484c74bca11e317f613df44",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ],
+   "extras": {
+    "splash": {
+     "asset": "splash_PTU.png",
+     "size": 402969,
+     "sha256": "6dd8b98be0775a42904d7c7daf1f65653ab6d2b67e1dffca73a80bd2c24c56c9",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "HOTFIX": {
+   "asset": "global_HOTFIX.ini",
+   "size": 12044341,
+   "sha256": "88987278117a60fc1f4af7369162df9df69102ffdeda6879269bb0f9a5195a56",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "extras": {
+    "splash": {
+     "asset": "splash_HOTFIX.png",
+     "size": 450989,
+     "sha256": "73ad8d194865d9f07b173bbd6d462d0f8fe35fffa9e2b11aa87cc3d369da3cc7",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  }
+ }
+}

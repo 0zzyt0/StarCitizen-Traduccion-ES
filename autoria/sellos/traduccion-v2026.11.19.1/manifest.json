@@ -1,0 +1,28 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.19.1",
+ "published_at": "2026-11-19T07:32:52Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Primera publicación automática de la traducción.\n- LIVE: Alpha 4.10.3 (Asedio a Orison).\n- PTU: Alpha 5.0.",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12044341,
+   "sha256": "88987278117a60fc1f4af7369162df9df69102ffdeda6879269bb0f9a5195a56",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ]
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12044338,
+   "sha256": "549d183bb30f50d34fab62b772bc6b5360a727d7a484c74bca11e317f613df44",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ]
+  }
+ }
+}

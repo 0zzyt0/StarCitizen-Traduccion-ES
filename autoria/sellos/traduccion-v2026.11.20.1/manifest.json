@@ -1,0 +1,61 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.20.1",
+ "published_at": "2026-11-20T08:48:27Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Actualizacion del PTU 5.0 (nuevo global.ini del PTU).\n- PTU: 179 textos nuevos traducidos (recetas de Wikelo para Ironclad, M80, Pitbull, Starlite y Tiburon; armas camufladas Model-K2, Verdict y Hellion; uniformes de People's Alliance, Rayari, Covalex y Shubin; opciones de telemetria y servicios locales).\n- PTU: traducidos unos 200 objetos que seguian como marcador (PH/PLACEHOLDER), y actualizadas las estadisticas de armaduras, armas y accesorios que habian cambiado.\n- PTU: las lineas de reputacion ahora se muestran como \"Reputacion otorgada: X puntos\".\n- LIVE y HOTFIX: sin cambios (Alpha 4.10.3).",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12044341,
+   "sha256": "88987278117a60fc1f4af7369162df9df69102ffdeda6879269bb0f9a5195a56",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "extras": {
+    "splash": {
+     "asset": "splash_LIVE.png",
+     "size": 447231,
+     "sha256": "f6bf1abecbf14c0855eeb20e9707e5695eb8d8da4175280fbc809005fee6c1f5",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12121462,
+   "sha256": "7066117665a51a093df1b2e59e1dab8d4d86ce95bd0c68d20aeb15cdca0f60f7",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ],
+   "extras": {
+    "splash": {
+     "asset": "splash_PTU.png",
+     "size": 402969,
+     "sha256": "6dd8b98be0775a42904d7c7daf1f65653ab6d2b67e1dffca73a80bd2c24c56c9",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "HOTFIX": {
+   "asset": "global_HOTFIX.ini",
+   "size": 12044341,
+   "sha256": "88987278117a60fc1f4af7369162df9df69102ffdeda6879269bb0f9a5195a56",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "extras": {
+    "splash": {
+     "asset": "splash_HOTFIX.png",
+     "size": 450989,
+     "sha256": "73ad8d194865d9f07b173bbd6d462d0f8fe35fffa9e2b11aa87cc3d369da3cc7",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  }
+ }
+}
