@@ -1,0 +1,64 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.23.2",
+ "published_at": "2026-11-23T12:55:28Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Revision de estilo en algunas descripciones (23-11-2026).\nDesde esta version cada publicacion queda firmada y sellada en el tiempo con OpenTimestamps: ver AUTORIA.md del repositorio.\n- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10\n- PTU: Traduccion 0zzyt0 PTU v5.0",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12044376,
+   "sha256": "8b434497489c94889f70a96e43ed32577f6441703315669c7f9270404e1edbd3",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_LIVE.png",
+     "size": 447231,
+     "sha256": "f6bf1abecbf14c0855eeb20e9707e5695eb8d8da4175280fbc809005fee6c1f5",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12158473,
+   "sha256": "4540f0c0acbc4359ead6acb1c54fda725461771c649d9341c2463f1b3f50fa60",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ],
+   "label": "Traduccion 0zzyt0 PTU v5.0",
+   "extras": {
+    "splash": {
+     "asset": "splash_PTU.png",
+     "size": 402969,
+     "sha256": "6dd8b98be0775a42904d7c7daf1f65653ab6d2b67e1dffca73a80bd2c24c56c9",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "HOTFIX": {
+   "asset": "global_HOTFIX.ini",
+   "size": 12044376,
+   "sha256": "8b434497489c94889f70a96e43ed32577f6441703315669c7f9270404e1edbd3",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_HOTFIX.png",
+     "size": 450989,
+     "sha256": "73ad8d194865d9f07b173bbd6d462d0f8fe35fffa9e2b11aa87cc3d369da3cc7",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  }
+ }
+}
