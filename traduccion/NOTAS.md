@@ -1,4 +1,4 @@
-PTU 5.0 actualizado (23-11-2026): nuevos textos y correcciones; tildes retiradas por la fuente del juego.
-Desde esta versión cada global.ini lleva la línea Personal_Translation_Version, que el gestor 2.0 usa para mostrar la versión instalada y la disponible.
+Revision de estilo en algunas descripciones (23-11-2026).
+Desde esta version cada publicacion queda firmada y sellada en el tiempo con OpenTimestamps: ver AUTORIA.md del repositorio.
 - LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10
 - PTU: Traduccion 0zzyt0 PTU v5.0
