@@ -1,0 +1,64 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.23.3",
+ "published_at": "2026-11-23T13:18:34Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Correccion ortografica (23-11-2026): recuperadas las ñ perdidas en unas 870 palabras por canal (año, cañon, tamaño, diseñadores, añade, navideño, campaña...) y concordancias corregidas en descripciones de pinturas.\n- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10\n- PTU: Traduccion 0zzyt0 PTU v5.0",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12045210,
+   "sha256": "5a2a07de48595ea3dcd7cc1e4910335ce2ac3b68c14a31b550825f776ce47364",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_LIVE.png",
+     "size": 447231,
+     "sha256": "f6bf1abecbf14c0855eeb20e9707e5695eb8d8da4175280fbc809005fee6c1f5",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12159317,
+   "sha256": "8f03a5bcdd16100be4e6cd9c9de09b4af5f55f20873ad3225fae441b8b26b864",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ],
+   "label": "Traduccion 0zzyt0 PTU v5.0",
+   "extras": {
+    "splash": {
+     "asset": "splash_PTU.png",
+     "size": 402969,
+     "sha256": "6dd8b98be0775a42904d7c7daf1f65653ab6d2b67e1dffca73a80bd2c24c56c9",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "HOTFIX": {
+   "asset": "global_HOTFIX.ini",
+   "size": 12045210,
+   "sha256": "5a2a07de48595ea3dcd7cc1e4910335ce2ac3b68c14a31b550825f776ce47364",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_HOTFIX.png",
+     "size": 450989,
+     "sha256": "73ad8d194865d9f07b173bbd6d462d0f8fe35fffa9e2b11aa87cc3d369da3cc7",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  }
+ }
+}
