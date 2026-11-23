@@ -35,15 +35,30 @@ Traducción de la comunidad de los textos de Star Citizen al español, con un in
    - **ACTUALIZAR en verde**: hay traducción nueva (o aún no la tienes). Púlsalo y listo.
    - **ACTUALIZAR en naranja**: ya tienes la última traducción.
    - **DESINSTALAR**: quita la traducción y deja el juego en **inglés**.
+   - **Avisos**: si el equipo de la traducción publica un aviso (por ejemplo «Trabajando en la versión PTU 5.0»),
+     aparece en un recuadro encima de los canales.
 4. Abre Star Citizen como siempre: los textos estarán en español.
 
 Solo tienes que descargar el instalador **una vez**.
 
 ## Canales y versiones
 
-La ventana muestra los canales **LIVE, PTU, EPTU, HOTFIX y TECH-PREVIEW**. Los que no tengas instalados salen en
-gris (es normal: CIG solo abre PTU, EPTU, HOTFIX o TECH-PREVIEW en momentos concretos; a veces solo existe LIVE).
-Si el juego está en otra carpeta, usa **Elegir carpeta del juego…**.
+La ventana muestra los canales **LIVE, PTU, EPTU, HOTFIX y TECH-PREVIEW**. Si el juego está en otra carpeta, usa
+**Elegir carpeta del juego…**.
+
+**HOTFIX, EPTU y TECH-PREVIEW son canales temporales**: CIG solo los abre en momentos concretos (a veces solo existe
+LIVE). Cada uno tiene un interruptor **Traducir**:
+
+| Situación del canal | Cómo se ve |
+|---|---|
+| No está instalado en tu PC o CIG lo tiene cerrado | En gris, **Inaccesible** (interruptor bloqueado) |
+| Instalado, pero aún no hay traducción para él | En gris, **Sin traducción** |
+| Instalado y con traducción | En color, con el interruptor activo |
+
+La primera vez que aparece uno de estos canales con traducción disponible, el gestor te pregunta si quieres
+traducirlo y **recuerda tu respuesta**. Si lo activas y CIG cierra el canal, cuando vuelva a abrirlo la traducción se
+pondrá sola al abrir el RSI Launcher. Si lo desactivas, el gestor no lo toca (y te pregunta si quitarle la
+traducción para dejarlo en inglés). LIVE y PTU se traducen siempre.
 
 Para cada canal se ve la versión **instalada** y la **disponible**. Salen de la línea
 `Personal_Translation_Version` del `global.ini`, por ejemplo `Traduccion 0zzyt0 PTU v5.0`: canal y versión del

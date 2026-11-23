@@ -58,6 +58,9 @@ class AppConfig:
     search_roots: tuple[str, ...]
     launcher_logs: tuple[str, ...]
     extra_targets: dict[str, str] = field(default_factory=dict)
+    notice_path: str = "AVISO.txt"            # aviso para los jugadores en el repositorio ("" = sin avisos)
+    notice_refresh_minutes: int = 3
+    optional_channels: tuple[str, ...] = ()   # canales temporales: se pregunta antes de traducirlos
     launcher_process_names: tuple[str, ...] = ("RSI Launcher.exe",)
     default_check_interval_hours: int = 24
     max_backups_per_install: int = 5
@@ -133,6 +136,13 @@ def config_from_dict(data: dict) -> AppConfig:
             or not re.match(r"^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)+$", v) or ".." in v
             for k, v in extras.items()):
         raise ConfigError("La lista de archivos extra (extra_targets) no es válida.")
+    optional = tuple(data.get("optional_channels", []) or [])
+    if any(c not in channels for c in optional):
+        raise ConfigError("«optional_channels» solo puede contener canales de la lista «channels».")
+    notice_path = str(data.get("notice_path", "AVISO.txt") or "")
+    if notice_path and (not re.match(r"^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*(\.[A-Za-z0-9]+)?$", notice_path)
+                        or ".." in notice_path):
+        raise ConfigError("La ruta del aviso (notice_path) no es válida.")
     require_sig = bool(data.get("require_signature", True))
     pub = data.get("signing_public_key", "") or ""
     if require_sig and not pub:
@@ -157,6 +167,9 @@ def config_from_dict(data: dict) -> AppConfig:
         search_roots=tuple(data.get("search_roots", [])),
         launcher_logs=tuple(data.get("launcher_logs", [])),
         extra_targets=dict(extras),
+        optional_channels=optional,
+        notice_path=notice_path,
+        notice_refresh_minutes=max(1, int(data.get("notice_refresh_minutes", 3))),
         launcher_process_names=tuple(data.get("launcher_process_names", ["RSI Launcher.exe"])),
         default_check_interval_hours=int(data.get("default_check_interval_hours", 24)),
         max_backups_per_install=max(1, int(data.get("max_backups_per_install", 5))),

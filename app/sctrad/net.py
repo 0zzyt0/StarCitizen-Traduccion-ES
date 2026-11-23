@@ -14,7 +14,7 @@ from typing import Callable, Protocol
 from urllib.parse import urlparse
 
 from . import __version__
-from .errors import NetworkError, RateLimitError
+from .errors import NetworkError, NotFoundError, RateLimitError
 
 log = logging.getLogger(__name__)
 
@@ -114,7 +114,7 @@ class Http:
                     self.sleep(2 ** attempt)
                     continue
                 if e.code == 404:
-                    raise NetworkError("No se ha encontrado el recurso en GitHub (404). ¿Existe el repositorio y es público?") from e
+                    raise NotFoundError("No se ha encontrado el recurso en GitHub (404). ¿Existe el repositorio y es público?") from e
                 raise NetworkError(f"GitHub respondió con un error ({e.code}).") from e
             except NetworkError:
                 raise

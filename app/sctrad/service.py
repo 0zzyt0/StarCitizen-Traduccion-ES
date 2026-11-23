@@ -28,6 +28,7 @@ from .net import Http
 from .procs import is_game_running
 from .state import StateStore, now_iso
 from .version import compare_versions, is_newer
+from .notice import NoticeLine, parse_notice
 from .version_line import is_ours
 
 log = logging.getLogger(__name__)
@@ -65,11 +66,19 @@ class InstallStatus:
     installed_label: str | None = None   # Personal_Translation_Version del global.ini instalado
     available_label: str | None = None   # Personal_Translation_Version del global.ini publicado
     installed_exists: bool = False
+    enabled: bool | None = True     # canales temporales: True traducir, False no, None todavía sin decidir
+    optional: bool = False          # canal temporal (HOTFIX, EPTU, TECH-PREVIEW)
 
     @property
     def needs_action(self) -> bool:
         """True si el botón ACTUALIZAR tiene algo que hacer en este canal."""
-        return self.entry is not None and self.state in (ST_UPDATE, ST_MISSING, ST_NOT_INSTALLED, ST_FOREIGN)
+        return (self.enabled is True and self.entry is not None
+                and self.state in (ST_UPDATE, ST_MISSING, ST_NOT_INSTALLED, ST_FOREIGN))
+
+    @property
+    def needs_decision(self) -> bool:
+        """Canal temporal recién aparecido, con traducción publicada, sobre el que aún no se ha preguntado."""
+        return self.optional and self.enabled is None and self.entry is not None
 
     @property
     def managed(self) -> bool:
@@ -90,6 +99,8 @@ class MissingChannel:
     channel: str
     path: str | None
     available_version: str | None = None
+    enabled: bool | None = True
+    optional: bool = False
 
 
 @dataclass
@@ -135,10 +146,10 @@ class UpdateService:
         for p in extra_paths:
             for gi in normalize_user_path(p, self.cfg):
                 found.setdefault(gi.key, gi)
-        # Instalaciones gestionadas cuya carpeta ya no existe: se muestran igualmente para poder limpiarlas.
-        for key, r in snap["installs"].items():
-            if key not in found and "path" in r:
-                found[key] = GameInstall(r["path"], r.get("channel", "?"))
+        # Las instalaciones registradas cuya carpeta ya no existe (p. ej. un canal temporal que CIG ha cerrado)
+        # no se listan: el canal aparece en gris como «Inaccesible». Su registro se conserva, de modo que si el
+        # canal vuelve a aparecer en la misma carpeta la traducción se repone sola.
+        found = {k: gi for k, gi in found.items() if is_valid_channel_dir(Path(gi.path))}
         return sorted(found.values(), key=lambda g: (self.cfg.channels.index(g.channel)
                                                       if g.channel in self.cfg.channels else 99, g.path.lower()))
 
@@ -208,6 +219,19 @@ class UpdateService:
         except (SCTradError, ValueError, KeyError, TypeError):
             return None, None
 
+    def fetch_notice(self) -> list[NoticeLine]:
+        """Aviso actual del repositorio. Sin conexión devuelve el último que se vio."""
+        try:
+            client, cache = self._client_with_cache()
+            raw = client.notice()
+            with self.store.transaction() as s:
+                s["cache"].setdefault("http", {}).update(cache)
+                s["cache"]["notice_b64"] = base64.b64encode(raw).decode()
+        except SCTradError as e:
+            log.info("No se pudo leer el aviso: %s", e)
+            raw = base64.b64decode(self.store.snapshot()["cache"].get("notice_b64") or "")
+        return parse_notice(raw, self.cfg.channels)
+
     def fetch_app_release(self) -> Release | None:
         try:
             client, cache = self._client_with_cache()
@@ -260,7 +284,31 @@ class UpdateService:
         else:
             state = ST_UP_TO_DATE
         return InstallStatus(gi, rec, installed, available, compat, state, entry, held,
-                             installed_label, available_label, bool(insp and insp.global_exists))
+                             installed_label, available_label, bool(insp and insp.global_exists),
+                             self.channel_enabled(gi.channel, snap), gi.channel in self.cfg.optional_channels)
+
+    # ------------------------------------------------- canales temporales
+    def channel_enabled(self, channel: str, snap: dict | None = None) -> bool | None:
+        """LIVE y PTU siempre True. En los canales temporales devuelve la elección guardada; si no la hay pero
+        la traducción ya estaba instalada con el gestor, True; si nunca se ha decidido, None."""
+        if channel not in self.cfg.optional_channels:
+            return True
+        snap = snap or self.store.snapshot()
+        prefs = snap["settings"].get("channels") or {}
+        if channel in prefs:
+            return bool(prefs[channel])
+        if any(r.get("channel") == channel and r.get("managed") for r in snap["installs"].values()):
+            return True
+        return None
+
+    def set_channel_enabled(self, channel: str, enabled: bool) -> None:
+        with self.store.transaction() as s:
+            s["settings"].setdefault("channels", {})[channel] = bool(enabled)
+            for r in s["installs"].values():
+                if r.get("channel") == channel:
+                    r["managed"] = bool(enabled)
+        self.store.add_history("", channel, "canal", None, "ok",
+                               "Traducción activada" if enabled else "Traducción desactivada")
 
     def check(self, include_app: bool = True) -> CheckResult:
         rel, man, offline, err = self.fetch_release()
@@ -378,7 +426,21 @@ class UpdateService:
             repairs: list[InstallStatus] = []
             for gi in self.known_installs():
                 st = self.status_for(gi, man, snap)
-                if not st.managed or st.held:
+                if st.enabled is False or st.held:
+                    continue
+                if st.needs_decision:
+                    self._notice_once(notices, f"canal:{gi.channel}", Notice(
+                        f"Canal {gi.channel} detectado",
+                        f"Hay traducción al español para el canal {gi.channel}. Abre el gestor para elegir si "
+                        "quieres instalarla.", "info"))
+                    continue
+                if (st.optional and st.enabled and not st.record and st.state == ST_NOT_INSTALLED
+                        and not st.installed_exists):
+                    # Canal temporal que vuelve a aparecer y que el jugador quiere traducido.
+                    if st.compat != INCOMPATIBLE:
+                        updates.append(st)
+                    continue
+                if not st.managed:
                     continue
                 if st.state == ST_MISSING and not is_newer(man.version, st.installed_version or "0"):
                     repairs.append(st)  # restaurar nuestros propios archivos: siempre, sin preguntar
@@ -433,7 +495,8 @@ class UpdateService:
     def _background_install(self, st: InstallStatus, rel: Release, man: Manifest, wait_for_game: bool,
                             poll_seconds: float, max_wait_seconds: float, sleep) -> list[Notice]:
         gi = st.install
-        action = "reparar" if st.state == ST_MISSING else "actualizar"
+        action = ("reparar" if st.state == ST_MISSING else
+                  "instalar" if st.state == ST_NOT_INSTALLED else "actualizar")
         try:
             staged, entry = self.stage(rel, man, gi.channel)
             extras = self.stage_extras(rel, man, gi.channel)
@@ -455,7 +518,7 @@ class UpdateService:
             sleep(poll_seconds)
             waited += poll_seconds
         # Si el jugador borró user.cfg (p. ej. reinstalación del juego) se vuelve a crear; si existe se respeta.
-        touch_cfg = not (Path(gi.path) / "user.cfg").exists()
+        touch_cfg = action == "instalar" or not (Path(gi.path) / "user.cfg").exists()
         for attempt in range(3):
             try:
                 self.installer.install(gi, staged, entry, man.version, action=action, touch_user_cfg=touch_cfg,
@@ -463,7 +526,7 @@ class UpdateService:
                 if action == "reparar":
                     log.info("%s: archivos de la traducción restaurados (%s).", gi.channel, man.version)
                     return []  # mantenimiento silencioso: no molesta al jugador
-                return [Notice("Traducción actualizada",
+                return [Notice("Traducción instalada" if action == "instalar" else "Traducción actualizada",
                                f"{gi.channel}: instalada la versión {man.version}.", "ok")]
             except GameRunningError:
                 if attempt == 2 or not wait_for_game:
@@ -532,7 +595,8 @@ class UpdateService:
         for ch in self.cfg.channels:
             if ch not in present:
                 av = manifest.version if manifest and ch in manifest.channels else None
-                rows.append(MissingChannel(ch, str(Path(roots[0]) / ch) if roots else None, av))
+                rows.append(MissingChannel(ch, str(Path(roots[0]) / ch) if roots else None, av,
+                                           self.channel_enabled(ch), ch in self.cfg.optional_channels))
         order = {c: i for i, c in enumerate(self.cfg.channels)}
 
         def key(x):

@@ -65,7 +65,27 @@ pestaña **Actions** que termina en verde y en **Releases** que está `StarCitiz
 También se puede lanzar a mano (Actions → Compilar instalador → Run workflow); en ese caso el instalador queda
 como *artifact* descargable de la ejecución, sin crear release.
 
+## Avisos para los jugadores (`AVISO.txt`)
+
+El archivo `AVISO.txt` de la raíz del repositorio se muestra en el gestor de todos los jugadores, en el recuadro
+**Avisos** (entre el titular y la lista de canales). El gestor lo lee al abrirse y cada 3 minutos mientras está
+abierto (`notice_refresh_minutes`), con la API de contenidos de GitHub y caché ETag: si no ha cambiado no gasta
+cuota. Puede tardar hasta un par de minutos en llegar por la caché de GitHub.
+
+- Las líneas que empiezan por `#` no se muestran; máximo 4 líneas de 160 caracteres, como texto plano.
+- `[PTU] Trabajando en la versión PTU 5.0` sale con el color del canal PTU (vale cualquier canal).
+- Para quitar el aviso, deja solo los comentarios. Si se borra el archivo, el aviso también desaparece.
+- Editarlo **no** publica traducción ni recompila el gestor.
+
 ## Publicar una traducción nueva
+
+### Canales temporales (HOTFIX, EPTU, TECH-PREVIEW)
+
+Están en `optional_channels` de `config/app_config.json`. El gestor pregunta a cada jugador la primera vez que
+aparece uno de ellos (si hay traducción publicada para él) y recuerda la respuesta; mientras no estén instalados se
+ven en gris como **Inaccesible**. EPTU y TECH-PREVIEW solo tienen traducción si se sube su propio
+`traduccion/<CANAL>/global.ini` con su línea `Personal_Translation_Version=Traduccion 0zzyt0 <CANAL> vX.X`
+(esa línea manda sobre el `Frontend_PU_Version` del archivo). Sin archivo propio salen como **Sin traducción**.
 
 ### Canal HOTFIX
 

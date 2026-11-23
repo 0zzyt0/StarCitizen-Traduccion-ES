@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import (QFileDialog, QGridLayout, QHBoxLayout, QLabel, QMainWindow, QMessageBox,
-                               QProgressBar, QPushButton, QVBoxLayout)
+from PySide6.QtCore import QRectF, QSize, Qt, QTimer
+from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtWidgets import (QAbstractButton, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QMainWindow,
+                               QMessageBox, QProgressBar, QPushButton, QVBoxLayout)
 
 from .. import __version__, scheduler
 from ..errors import PermissionNeededError, SCTradError
 from ..service import (ST_FOREIGN, ST_MISSING, ST_NOT_INSTALLED, ST_UP_TO_DATE, ST_UPDATE, CheckResult,
                        InstallStatus, MissingChannel, UpdateService, compare_app_version)
-from ..version_line import short
+from ..version_line import is_ours, short
 from .common import offer_elevation, show_error
 from .holo import CHANNEL_COLORS, CYAN, HoloFrame, HoloLogo, HoloSurface, dark_titlebar, glow
 from .theme import app_icon, title_font
@@ -30,6 +30,39 @@ STATE_TEXT = {
     ST_NOT_INSTALLED: ("⬆ Sin instalar", "#ffc06b"),
     ST_FOREIGN: ("⬆ Otra traducción", "#ffc06b"),
 }
+
+
+class HoloSwitch(QAbstractButton):
+    """Interruptor deslizante con el color del canal; en gris cuando está bloqueado."""
+
+    def __init__(self, color: QColor, parent=None):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.color = QColor(color)
+        self.can_toggle = True
+        self.setFixedSize(46, 22)
+        self.setCursor(Qt.PointingHandCursor)
+
+    def sizeHint(self) -> QSize:
+        return QSize(46, 22)
+
+    def paintEvent(self, _ev) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        r = QRectF(1, 1, self.width() - 2, self.height() - 2)
+        on = self.isChecked()
+        col = QColor(self.color) if self.isEnabled() else QColor(GREY)
+        track = QColor(col)
+        track.setAlpha(150 if on else 35)
+        p.setPen(QPen(col, 1.2))
+        p.setBrush(track)
+        p.drawRoundedRect(r, r.height() / 2, r.height() / 2)
+        d = r.height() - 6
+        x = r.right() - d - 3 if on else r.left() + 3
+        p.setPen(Qt.NoPen)
+        p.setBrush(QColor("#eafcff") if on and self.isEnabled() else QColor("#5d7a90") if self.isEnabled() else col)
+        p.drawEllipse(QRectF(x, r.top() + 3, d, d))
+        p.end()
 
 
 def big_button_qss(colors) -> str:
@@ -49,8 +82,8 @@ class SimpleWindow(QMainWindow):
         self.busy = False
         self.setWindowTitle("Traducción al español de Star Citizen")
         self.setWindowIcon(app_icon())
-        self.resize(820, 760)
-        self.setMinimumSize(700, 680)
+        self.resize(820, 830)
+        self.setMinimumSize(700, 720)
 
         root = HoloSurface()
         lay = QVBoxLayout(root)
@@ -75,11 +108,21 @@ class SimpleWindow(QMainWindow):
         self.headline.setStyleSheet("color:#38d6ff; letter-spacing:2px;")
         lay.addWidget(self.headline)
 
+        # Avisos del equipo (archivo AVISO.txt del repositorio), en tiempo casi real.
+        self.notice_frame = HoloFrame(title="Avisos")
+        self.notice_box = QVBoxLayout(self.notice_frame)
+        self.notice_box.setContentsMargins(18, 26, 18, 10)
+        self.notice_box.setSpacing(4)
+        self.notice_frame.hide()
+        self.notice_lines: list = []
+        self._notice_job = False
+        lay.addWidget(self.notice_frame)
+
         self.frame = HoloFrame(title="Canales")
         self.grid = QGridLayout(self.frame)
         self.grid.setContentsMargins(18, 28, 18, 14)
         self.grid.setHorizontalSpacing(18)
-        self.grid.setVerticalSpacing(8)
+        self.grid.setVerticalSpacing(10)
         lay.addWidget(self.frame)
 
         lay.addSpacing(6)
@@ -127,6 +170,9 @@ class SimpleWindow(QMainWindow):
         foot.addWidget(self.btn_folder)
         lay.addLayout(foot)
         self.setCentralWidget(root)
+        self.notice_timer = QTimer(self)
+        self.notice_timer.setInterval(max(1, service.cfg.notice_refresh_minutes) * 60_000)
+        self.notice_timer.timeout.connect(self.refresh_notice)
         QTimer.singleShot(60, self.start)
 
     def showEvent(self, ev):
@@ -142,6 +188,8 @@ class SimpleWindow(QMainWindow):
         self.busy = busy
         self.btn_update.setEnabled(not busy)
         self.btn_uninstall.setEnabled(not busy and self._has_translation())
+        for sw in self.frame.findChildren(HoloSwitch):
+            sw.setEnabled(sw.can_toggle and not busy)
         self.progress.setVisible(busy)
         if busy:
             self.progress.setRange(0, 0)
@@ -165,34 +213,63 @@ class SimpleWindow(QMainWindow):
 
     def _fill_channels(self, res: CheckResult) -> None:
         self._clear_grid()
-        heads = ["CANAL", "INSTALADA", "DISPONIBLE", "ESTADO"]
+        heads = ["CANAL", "INSTALADA", "DISPONIBLE", "ESTADO", "TRADUCIR"]
         for c, h in enumerate(heads):
             lb = QLabel(h)
             lb.setObjectName("Kicker")
             self.grid.addWidget(lb, 0, c)
         for r, row in enumerate(self.service.channel_rows(res.statuses, res.manifest), start=1):
             if isinstance(row, MissingChannel):
-                tip = "Este canal no está instalado en este PC."
+                if row.optional:
+                    text = "Inaccesible"
+                    tip = ("Canal temporal no disponible: no está instalado en este PC o CIG lo tiene cerrado. "
+                           "Cuando vuelva a aparecer se respetará tu elección del interruptor «Traducir».")
+                else:
+                    text, tip = "No instalado en este PC", "Este canal no está instalado en este PC."
                 self.grid.addWidget(self._cell(row.channel, GREY, True, tip), r, 0)
                 self.grid.addWidget(self._cell("—", GREY, tip=tip), r, 1)
                 self.grid.addWidget(self._cell("—", GREY, tip=tip), r, 2)
-                self.grid.addWidget(self._cell("No instalado en este PC", GREY, tip=tip), r, 3)
+                self.grid.addWidget(self._cell(text, GREY, tip=tip), r, 3)
+                if row.optional:
+                    self.grid.addWidget(self._switch(row.channel, row.enabled is True, False, tip), r, 4)
                 continue
             st: InstallStatus = row
-            col = CHANNEL_COLORS.get(st.install.channel, CYAN).name()
+            col = CHANNEL_COLORS.get(st.install.channel, CYAN).name() if st.entry else "#7d97ab"
             path = st.install.path
             self.grid.addWidget(self._cell(st.install.channel, col, True, path), r, 0)
             inst = short(st.installed_label) if st.installed_label else ("Sin versión" if st.installed_exists else "—")
-            avail = short(st.available_label) if st.available_label else (
-                st.available_version or "Sin traducción para este canal")
+            avail = short(st.available_label) if st.available_label else (st.available_version or "—")
             self.grid.addWidget(self._cell(inst, "#d8f6ff", tip=st.installed_label or path), r, 1)
             self.grid.addWidget(self._cell(avail, "#d8f6ff", tip=st.available_label or ""), r, 2)
             text, color = STATE_TEXT.get(st.state, ("—", GREY))
+            tip = st.state_label
             if not st.entry:
-                text, color = "Sin traducción publicada", GREY
-            self.grid.addWidget(self._cell(text, color, tip=st.state_label), r, 3)
+                text, color = "Sin traducción", "#7d97ab"
+                tip = "Todavía no hay traducción publicada para este canal."
+            elif st.enabled is False:
+                text, color, tip = "Desactivado", GREY, "Has elegido no traducir este canal."
+            elif st.enabled is None:
+                text, color, tip = "Pendiente de decidir", "#ffc06b", "Activa «Traducir» para instalar la traducción."
+            self.grid.addWidget(self._cell(text, color, tip=tip), r, 3)
+            if st.optional:
+                sw_tip = ("Activado: el gestor instala y mantiene la traducción en este canal. "
+                          "Desactivado: no se toca.") if st.entry else "Todavía no hay traducción para este canal."
+                self.grid.addWidget(self._switch(st.install.channel, st.enabled is True, bool(st.entry), sw_tip,
+                                                 st), r, 4)
         self.grid.setColumnStretch(1, 1)
         self.grid.setColumnStretch(2, 1)
+
+    def _switch(self, channel: str, checked: bool, enabled: bool, tip: str,
+                st: InstallStatus | None = None) -> HoloSwitch:
+        sw = HoloSwitch(CHANNEL_COLORS.get(channel, CYAN))
+        sw.setObjectName(f"switch_{channel}")
+        sw.setChecked(checked)
+        sw.can_toggle = enabled
+        sw.setEnabled(enabled and not self.busy)
+        sw.setToolTip(tip)
+        if st is not None:
+            sw.toggled.connect(lambda on, st=st, sw=sw: self.on_toggle(st, on, sw))
+        return sw
 
     def _has_translation(self) -> bool:
         return bool(self.result and any(st.installed_exists or st.record for st in self.result.statuses))
@@ -209,6 +286,42 @@ class SimpleWindow(QMainWindow):
             self.service.store.update_settings(first_run_done=True)
         Task(self, ensure, on_done=lambda _r: None, on_error=lambda e: None).start()
         self.refresh()
+        self.refresh_notice()
+        self.notice_timer.start()
+
+    # ----------------------------------------------------------------- avisos
+    def refresh_notice(self) -> None:
+        if self._notice_job or not self.service.cfg.notice_path:
+            return
+        self._notice_job = True
+
+        def done(lines):
+            self._notice_job = False
+            self.show_notice(lines)
+
+        def failed(_e):
+            self._notice_job = False
+
+        Task(self, lambda _w: self.service.fetch_notice(), on_done=done, on_error=failed).start()
+
+    def show_notice(self, lines) -> None:
+        if lines == self.notice_lines:
+            return
+        self.notice_lines = list(lines)
+        while self.notice_box.count():
+            w = self.notice_box.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        for ln in lines:
+            col = CHANNEL_COLORS.get(ln.channel, QColor("#d8f6ff")).name() if ln.channel else "#d8f6ff"
+            lb = QLabel(f"◆  {ln.text}")
+            lb.setTextFormat(Qt.PlainText)
+            lb.setWordWrap(True)
+            lb.setAlignment(Qt.AlignCenter)
+            lb.setFont(title_font(9.5))
+            lb.setStyleSheet(f"color:{col}; letter-spacing:1px;")
+            self.notice_box.addWidget(lb)
+        self.notice_frame.setVisible(bool(lines))
 
     def refresh(self, after_text: str | None = None) -> None:
         self._set_busy(True, "Comprobando la traducción publicada en GitHub…")
@@ -253,6 +366,74 @@ class SimpleWindow(QMainWindow):
         self.btn_folder.setVisible(not res.statuses)
         pub = f" · Traducción publicada {res.manifest.version}" if res.manifest else ""
         self.footer.setText(f"Gestor {__version__}{pub} · Se comprueba al abrir el RSI Launcher y al cerrar el juego")
+        new = [st for st in res.statuses if st.needs_decision]
+        if new:
+            QTimer.singleShot(0, lambda: self._ask_new_channels(new))
+
+    def ask_channel(self, st: InstallStatus) -> bool:
+        """Pregunta (una sola vez) si traducir un canal temporal recién detectado."""
+        ver = short(st.available_label) if st.available_label else st.available_version
+        return QMessageBox.question(
+            self, f"Canal {st.install.channel} detectado",
+            f"Se ha detectado el canal {st.install.channel} de Star Citizen y hay traducción al español "
+            f"disponible ({ver}).\n\n¿Quieres instalarla en este canal?\n\nSe recordará tu respuesta. Podrás "
+            "cambiarla cuando quieras con el interruptor «Traducir».") == QMessageBox.Yes
+
+    def _ask_new_channels(self, new: list[InstallStatus]) -> None:
+        if self.busy:
+            return
+        yes = []
+        for st in new:
+            ok = self.ask_channel(st)
+            self.service.set_channel_enabled(st.install.channel, ok)
+            if ok:
+                yes.append(st)
+        self._install_channels(yes)
+
+    def _install_channels(self, sts: list[InstallStatus]) -> None:
+        """Recalcula el estado de esos canales (ya activados) e instala los que lo necesiten."""
+        res = self.result
+        if not res or not res.manifest:
+            self.refresh()
+            return
+        snap = self.service.store.snapshot()
+        fresh = [self.service.status_for(st.install, res.manifest, snap) for st in sts]
+        pending = [st for st in fresh if st.needs_action]
+        if pending:
+            self._run_install(pending)
+        else:
+            self.refresh()
+
+    def on_toggle(self, st: InstallStatus, on: bool, sw: HoloSwitch) -> None:
+        if self.busy:
+            sw.blockSignals(True)
+            sw.setChecked(not on)
+            sw.blockSignals(False)
+            return
+        ch = st.install.channel
+        if on:
+            self.service.set_channel_enabled(ch, True)
+            self._install_channels([st])
+            return
+        ours = st.installed_exists and (st.record or is_ours(st.installed_label))
+        if ours:
+            ans = QMessageBox.question(
+                self, f"Dejar de traducir {ch}",
+                f"El canal {ch} tiene la traducción instalada.\n\n¿Quieres quitarla y dejar el canal en inglés?"
+                "\n\nSí: se quita la traducción.\nNo: se deja como está, pero ya no se actualizará.",
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Cancel)
+            if ans == QMessageBox.Cancel:
+                sw.blockSignals(True)
+                sw.setChecked(True)
+                sw.blockSignals(False)
+                return
+            self.service.set_channel_enabled(ch, False)
+            if ans == QMessageBox.Yes:
+                self._run_uninstall([st], f"Traducción quitada de {ch}: el canal está en inglés.")
+                return
+        else:
+            self.service.set_channel_enabled(ch, False)
+        self.refresh(f"El canal {ch} ya no se traducirá.")
 
     # ----------------------------------------------------------------- acciones
     def on_update(self) -> None:
@@ -263,6 +444,10 @@ class SimpleWindow(QMainWindow):
         if not pending or not res.manifest:
             self.refresh("No hay actualizaciones: ya tienes la última traducción.")
             return
+        self._run_install(pending)
+
+    def _run_install(self, pending: list[InstallStatus]) -> None:
+        res = self.result
         self._set_busy(True, "Actualizando…")
         self.progress.setRange(0, 1000)
 
@@ -318,6 +503,9 @@ class SimpleWindow(QMainWindow):
                                 f"Se quitará la traducción de: {names}.\n\nEl juego volverá a estar en inglés "
                                 "y se restaurará la pantalla de carga anterior. ¿Continuar?") != QMessageBox.Yes:
             return
+        self._run_uninstall(targets, "Traducción desinstalada: el juego está en inglés.")
+
+    def _run_uninstall(self, targets: list[InstallStatus], ok_text: str) -> None:
         self._set_busy(True, "Desinstalando…")
 
         def job(w):
@@ -342,7 +530,7 @@ class SimpleWindow(QMainWindow):
                             errors.pop(st.install.channel, None)
             if errors:
                 QMessageBox.warning(self, "Desinstalar", "\n".join(f"{k}: {v}" for k, v in errors.items()))
-            self.refresh("Traducción desinstalada: el juego está en inglés." if not errors else None)
+            self.refresh(ok_text if not errors else None)
 
         Task(self, job, on_done=finished,
              on_error=lambda e: (self._set_busy(False), show_error(self, "Desinstalar", e))).start()

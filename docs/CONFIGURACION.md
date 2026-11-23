@@ -79,7 +79,8 @@ logs\          registros (gestor.log, segundo_plano.log)
   "schema": 1,
   "settings": {"auto_update": true, "mode": "silent|notify", "release_channel": "stable|beta",
                "interval_hours": 24, "task_registered": true, "task_method": "schtasks|run_key",
-               "task_error": null, "first_run_done": true},
+               "task_error": null, "first_run_done": true,
+               "channels": {"EPTU": true, "TECH-PREVIEW": false}},
   "installs": {
     "c:\\...\\starcitizen\\live": {
       "path": "C:\\...\\StarCitizen\\LIVE", "channel": "LIVE", "managed": true,
@@ -93,10 +94,21 @@ logs\          registros (gestor.log, segundo_plano.log)
   "custom_paths": [],
   "history": [{"time": "…", "path": "…", "channel": "LIVE", "action": "actualizar",
                "version": "…", "result": "ok", "detail": "…"}],
-  "cache": {"http": {}, "release": {}, "manifest_b64": "…", "signature_b64": "…"},
+  "cache": {"http": {}, "release": {}, "manifest_b64": "…", "signature_b64": "…", "notice_b64": "…"},
   "last_check": {"time": "…", "result": "ok", "available_version": "…"}
 }
 ```
+
+`settings.channels` guarda la respuesta del jugador para cada canal temporal (`optional_channels`). Si un canal
+temporal no aparece ahí pero ya tenía la traducción instalada con el gestor, cuenta como activado; si no, el gestor
+pregunta la primera vez. Las instalaciones registradas cuya carpeta ya no existe no se listan (el canal sale como
+**Inaccesible**), pero su registro se conserva para reponer la traducción cuando el canal vuelva.
+
+Claves de `config/app_config.json` relacionadas:
+
+- `optional_channels`: canales temporales (por defecto HOTFIX, EPTU y TECH-PREVIEW).
+- `notice_path`: archivo del repositorio con el aviso para los jugadores (`AVISO.txt`; `""` lo desactiva).
+- `notice_refresh_minutes`: cada cuánto se vuelve a leer el aviso con el gestor abierto (3).
 
 ## Tarea programada y vigilante
 

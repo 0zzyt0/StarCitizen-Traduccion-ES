@@ -105,11 +105,17 @@ class FakeHttp:
 class FakeClient:
     """Sustituye a ReleaseClient con publicaciones preparadas en memoria."""
 
-    def __init__(self, release=None, small=None, error=None):
+    def __init__(self, release=None, small=None, error=None, notice=b""):
         self.release = release
         self.small = small or {}
         self.error = error
+        self.notice_bytes = notice
         self.cache = {}
+
+    def notice(self):
+        if self.error:
+            raise self.error
+        return self.notice_bytes
 
     def latest_translation(self, include_prerelease=False):
         if self.error:

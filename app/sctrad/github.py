@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 from dataclasses import dataclass, field
 
 from .config import AppConfig
-from .errors import NetworkError
+from .errors import NetworkError, NotFoundError
 from .net import Http
 from .version import compare_versions, version_from_tag
 
@@ -114,6 +115,24 @@ class ReleaseClient:
 
     def latest_app(self) -> Release | None:
         return self._list(self.cfg.app_tag_prefix, False)
+
+    def notice(self) -> bytes:
+        """Contenido del archivo de aviso del repositorio (rama principal). b"" si no existe.
+        Usa la API de contenidos con ETag: si no ha cambiado, GitHub responde 304 y no gasta cuota."""
+        if not self.cfg.notice_path:
+            return b""
+        try:
+            data = self._get_cached(f"{self._base}/contents/{self.cfg.notice_path}")
+        except NotFoundError:
+            return b""
+        if not isinstance(data, dict) or data.get("type") != "file" or data.get("encoding") != "base64":
+            raise NetworkError("GitHub devolvió un aviso no válido.")
+        if int(data.get("size") or 0) > 8 * 1024:
+            return b""
+        try:
+            return base64.b64decode(data.get("content") or "")
+        except ValueError as e:
+            raise NetworkError("GitHub devolvió un aviso no válido.") from e
 
     def download_small(self, asset: Asset, max_bytes: int = 1024 * 1024) -> bytes:
         if asset.size > max_bytes:

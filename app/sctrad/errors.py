@@ -25,6 +25,10 @@ class RateLimitError(NetworkError):
     pass
 
 
+class NotFoundError(NetworkError):
+    """El recurso no existe en GitHub (404)."""
+
+
 class IntegrityError(SCTradError):
     pass
 

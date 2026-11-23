@@ -18,6 +18,11 @@
   },
   "user_cfg_only_if_absent": ["g_languageAudio"],
   "channels": ["LIVE", "PTU", "EPTU", "HOTFIX", "TECH-PREVIEW"],
+  "_optional_channels": "Canales temporales: el gestor pregunta la primera vez si traducirlos y recuerda la respuesta. Si no estan instalados en el PC se muestran en gris (Inaccesible).",
+  "optional_channels": ["HOTFIX", "EPTU", "TECH-PREVIEW"],
+  "_notice_path": "Archivo del repositorio con el aviso para los jugadores; el gestor lo muestra al abrirse y lo vuelve a consultar cada notice_refresh_minutes minutos.",
+  "notice_path": "AVISO.txt",
+  "notice_refresh_minutes": 3,
   "_publish_channel_sources": "Canales que se publican con el global.ini de otro canal (lo usa la herramienta de publicación; el gestor no lo lee).",
   "publish_channel_sources": {
     "HOTFIX": "LIVE"
