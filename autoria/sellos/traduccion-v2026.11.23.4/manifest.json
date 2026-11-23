@@ -1,0 +1,64 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.23.4",
+ "published_at": "2026-11-23T21:25:13Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Actualizacion PTU 5.0 (23-11-2026): adaptada al nuevo archivo de textos del PTU.\n- Nuevos objetos traducidos: uniformes Ajax de seguridad, gorras, camisetas y armaduras de People's Alliance, Rayari, Covalex y Shubin, diseño \"Derivation\" del Sabre, caja fuerte y pases de seguridad.\n- Estadisticas actualizadas en armaduras, monos, armas, cargadores y accesorios (por ejemplo LH86: 25 balas y 1200 rpm; FS-9: 75 balas).\n- Textos de misiones revisados para resaltar ubicaciones y paquetes como en el original.\n- Lineas de reputacion con el formato \"Reputacion otorgada: X puntos\".\n- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10\n- PTU: Traduccion 0zzyt0 PTU v5.0",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12045210,
+   "sha256": "5a2a07de48595ea3dcd7cc1e4910335ce2ac3b68c14a31b550825f776ce47364",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_LIVE.png",
+     "size": 447231,
+     "sha256": "f6bf1abecbf14c0855eeb20e9707e5695eb8d8da4175280fbc809005fee6c1f5",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12175260,
+   "sha256": "8f54c1ef6e7ee0aff03a84bf8efbd3cde63ebd5ab45e5a96658cffc55e044f4c",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ],
+   "label": "Traduccion 0zzyt0 PTU v5.0",
+   "extras": {
+    "splash": {
+     "asset": "splash_PTU.png",
+     "size": 402969,
+     "sha256": "6dd8b98be0775a42904d7c7daf1f65653ab6d2b67e1dffca73a80bd2c24c56c9",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "HOTFIX": {
+   "asset": "global_HOTFIX.ini",
+   "size": 12045210,
+   "sha256": "5a2a07de48595ea3dcd7cc1e4910335ce2ac3b68c14a31b550825f776ce47364",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_HOTFIX.png",
+     "size": 450989,
+     "sha256": "73ad8d194865d9f07b173bbd6d462d0f8fe35fffa9e2b11aa87cc3d369da3cc7",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  }
+ }
+}
