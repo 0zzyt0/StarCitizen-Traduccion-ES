@@ -20,6 +20,10 @@
 Traducción de la comunidad de los textos de Star Citizen al español, con un instalador para Windows que
 **la instala y la mantiene actualizada sola**. Proyecto no oficial, sin relación con Cloud Imperium Games.
 
+> **Fuente oficial única:** este repositorio. Traducción de **0zzyt0**, firmada digitalmente y sellada en el tiempo
+> en cada publicación ([AUTORIA.md](AUTORIA.md)). Las copias de otros sitios no son oficiales, pueden estar
+> modificadas y no se actualizan. Licencia de la traducción: [CC BY-NC-ND 4.0](LICENSE).
+
 > **¿Qué descargo de la página *Releases*?** Solo la publicación **⬇️ INSTALADOR — Gestor …** (siempre la primera,
 > marcada como *Latest*). Las publicaciones **🔄 Traducción …** son las actualizaciones de los textos: el gestor las
 > instala solo, **no hay que descargarlas**.
@@ -114,6 +118,13 @@ contraseñas ni datos personales.
 El gestor solo se conecta a `api.github.com` y a los servidores de descarga de GitHub para consultar y bajar las
 publicaciones de este repositorio. No envía ningún dato tuyo ni usa telemetría. Todo lo que guarda (ajustes,
 historial, copias de seguridad) está en `%LOCALAPPDATA%\SC-Traduccion-ES`.
+
+## Autoría y licencia
+
+La traducción es obra de **0zzyt0** y se distribuye bajo [CC BY-NC-ND 4.0](LICENSE): puedes compartirla sin
+cambios citando al autor y enlazando a este repositorio; no se permite el uso comercial, distribuir versiones
+modificadas ni atribuírsela a otra persona. Cada publicación está firmada (Ed25519) y sellada con OpenTimestamps en
+Bitcoin: ver [AUTORIA.md](AUTORIA.md) y [autoria/](autoria/README.md).
 
 ## Para el mantenedor
 

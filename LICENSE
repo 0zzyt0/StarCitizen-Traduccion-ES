@@ -1,0 +1,34 @@
+LICENCIA — Traducción al español de Star Citizen
+Copyright (c) 2026 0zzyt0
+
+1. TRADUCCIÓN (carpeta traduccion/: archivos global.ini y notas)
+
+   La traducción al español creada por 0zzyt0 se distribuye bajo la licencia
+   Creative Commons Reconocimiento-NoComercial-SinObraDerivada 4.0 Internacional (CC BY-NC-ND 4.0):
+   https://creativecommons.org/licenses/by-nc-nd/4.0/deed.es
+   Texto legal completo: https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode.es
+
+   En resumen (el texto legal es el que vale):
+   - Puedes usarla y compartirla tal cual, sin cambios, citando siempre la autoría
+     («Traducción de 0zzyt0») y enlazando a https://github.com/0zzyt0/StarCitizen-Traduccion-ES
+   - No puedes usarla con fines comerciales.
+   - No puedes distribuir versiones modificadas ni presentarla como trabajo propio o de otra persona.
+
+   La licencia cubre únicamente la aportación original de 0zzyt0 (la traducción). Los textos originales
+   en inglés, los nombres y las marcas de Star Citizen pertenecen a Cloud Imperium Games y a sus titulares;
+   este proyecto no es oficial ni está relacionado con Cloud Imperium Games.
+
+2. GESTOR, INSTALADOR, LOGOTIPO, ICONOS, PANTALLAS DE CARGA Y HERRAMIENTAS
+   (carpetas app/, installer/, tools/, tests/, assets/, config/, docs/, .github/ y las imágenes de traduccion/)
+
+   Todos los derechos reservados. Puedes descargar el instalador publicado en este repositorio y usarlo
+   para instalar la traducción. No está permitido redistribuirlo modificado ni reutilizar el código,
+   el logotipo «STAR CITIZEN ES» o las imágenes en otros proyectos sin permiso escrito del autor.
+
+   Excepción: las fuentes tipográficas de assets/fonts/ mantienen su propia licencia
+   (SIL Open Font License, ver los archivos OFL-*.txt).
+
+3. AUTORÍA VERIFICABLE
+
+   Cada publicación de la traducción está firmada digitalmente (Ed25519) y sellada en el tiempo con
+   OpenTimestamps. Ver AUTORIA.md.

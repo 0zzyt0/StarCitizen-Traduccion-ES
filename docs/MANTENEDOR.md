@@ -188,6 +188,23 @@ del anterior se conservan ajustes, historial y copias.
 Si un cambio futuro del manifiesto exigiera un gestor nuevo, sube `min_app_version` (la herramienta lo toma de
 `min_app_version_for_payload` en `config/app_config.json`): los gestores antiguos lo detectarán y pedirán actualizar.
 
+## Autoría: firma y sellos de tiempo
+
+Todo es automático; ver también [AUTORIA.md](../AUTORIA.md).
+
+- **Firma**: cada publicación lleva `manifest.json.sig` (Ed25519, secreto `MANIFEST_SIGNING_KEY`). Si cambias la
+  clave, actualiza también la clave pública y su huella en `AUTORIA.md`.
+- **Sellos OpenTimestamps**: el workflow **Sellar autoría** se ejecuta tras cada «Publicar traducción», una vez al
+  día y a mano. Guarda en `autoria/sellos/<etiqueta>/` el `SHA256SUMS.txt` de la publicación, su manifiesto y firma,
+  y el sello `.ots`; la ejecución diaria completa los sellos pendientes. Sus commits solo tocan `autoria/` y no
+  disparan publicaciones.
+- **Registros privados**: para sellar un documento privado sin publicarlo, sube a `autoria/registro/` un `.txt`
+  con su SHA-256 (por ejemplo `AAAA-MM-DD-registro-privado.txt`); el workflow lo sella.
+- **Comprobar una copia**: `python tools/verificar_autoria.py huella copia.ini` (idéntica a una publicación) o
+  `python tools/verificar_autoria.py registro copia.ini --registro registro_privado.json` (copias modificadas).
+- **Recomendado**: en GitHub → Settings → SSH and GPG keys, activa *Flag unsigned commits as unverified*
+  (vigilant mode) para que cualquier commit no firmado a tu nombre aparezca como no verificado.
+
 ## Firma de código del .exe (opcional)
 
 Sin firma, Windows SmartScreen muestra un aviso la primera vez. Si consigues un certificado de firma de código
