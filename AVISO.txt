@@ -1,11 +1,11 @@
 # AVISO PARA LOS JUGADORES
-# Lo que escribas debajo de estas líneas aparece en el gestor de TODOS los jugadores, en el recuadro «Avisos»
-# (entre el titular y la lista de canales). Se ve al abrir el gestor y se vuelve a consultar cada 3 minutos
+# Lo que escribas debajo de estas líneas aparece en el gestor de TODOS los jugadores, en la tira naranja «AVISO»
+# (entre el titular y la lista de canales), en una sola línea que se desplaza en horizontal. Se ve al abrir el gestor y se vuelve a consultar cada 3 minutos
 # mientras está abierto.
 #
 # - Las líneas que empiezan por # no se muestran.
-# - Máximo 4 líneas de 160 caracteres. Se muestra como texto plano (sin enlaces ni formato).
-# - Si empiezas la línea con el canal entre corchetes, sale con el color de ese canal:
+# - Máximo 4 líneas de 160 caracteres; se muestran seguidas, separadas por ◆. Texto plano (sin enlaces ni formato).
+# - Si empiezas la línea con el canal entre corchetes, se muestra delante («PTU · Trabajando…»):
 #     [LIVE] CANAL LIVE: NUEVA VERSIÓN EN CAMINO...
 #     [PTU] Trabajando en la versión PTU 5.0
 # - Para quitar el aviso, deja solo estas líneas con #.

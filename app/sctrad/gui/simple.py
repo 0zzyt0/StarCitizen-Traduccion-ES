@@ -17,6 +17,7 @@ from ..version_line import is_ours, short
 from .common import offer_elevation, show_error
 from .holo import CHANNEL_COLORS, CYAN, HoloFrame, HoloLogo, HoloSurface, dark_titlebar, glow
 from .theme import app_icon, title_font
+from .ticker import NoticeTicker
 from .workers import Task
 
 GREEN = ("#3dffb0", "#12a150", QColor(61, 255, 176))
@@ -82,8 +83,8 @@ class SimpleWindow(QMainWindow):
         self.busy = False
         self.setWindowTitle("Traducción al español de Star Citizen")
         self.setWindowIcon(app_icon())
-        self.resize(820, 830)
-        self.setMinimumSize(700, 720)
+        self.resize(820, 790)
+        self.setMinimumSize(700, 700)
 
         root = HoloSurface()
         lay = QVBoxLayout(root)
@@ -108,15 +109,12 @@ class SimpleWindow(QMainWindow):
         self.headline.setStyleSheet("color:#38d6ff; letter-spacing:2px;")
         lay.addWidget(self.headline)
 
-        # Avisos del equipo (archivo AVISO.txt del repositorio), en tiempo casi real.
-        self.notice_frame = HoloFrame(title="Avisos")
-        self.notice_box = QVBoxLayout(self.notice_frame)
-        self.notice_box.setContentsMargins(18, 26, 18, 10)
-        self.notice_box.setSpacing(4)
-        self.notice_frame.hide()
+        # Avisos del equipo (archivo AVISO.txt del repositorio): tira naranja de una línea, estilo HUD/MFD.
+        self.ticker = NoticeTicker()
+        self.ticker.hide()
         self.notice_lines: list = []
         self._notice_job = False
-        lay.addWidget(self.notice_frame)
+        lay.addWidget(self.ticker)
 
         self.frame = HoloFrame(title="Canales")
         self.grid = QGridLayout(self.frame)
@@ -308,20 +306,7 @@ class SimpleWindow(QMainWindow):
         if lines == self.notice_lines:
             return
         self.notice_lines = list(lines)
-        while self.notice_box.count():
-            w = self.notice_box.takeAt(0).widget()
-            if w:
-                w.deleteLater()
-        for ln in lines:
-            col = CHANNEL_COLORS.get(ln.channel, QColor("#d8f6ff")).name() if ln.channel else "#d8f6ff"
-            lb = QLabel(f"◆  {ln.text}")
-            lb.setTextFormat(Qt.PlainText)
-            lb.setWordWrap(True)
-            lb.setAlignment(Qt.AlignCenter)
-            lb.setFont(title_font(9.5))
-            lb.setStyleSheet(f"color:{col}; letter-spacing:1px;")
-            self.notice_box.addWidget(lb)
-        self.notice_frame.setVisible(bool(lines))
+        self.ticker.set_lines(self.notice_lines)
 
     def refresh(self, after_text: str | None = None) -> None:
         self._set_busy(True, "Comprobando la traducción publicada en GitHub…")

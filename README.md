@@ -35,8 +35,8 @@ Traducción de la comunidad de los textos de Star Citizen al español, con un in
    - **ACTUALIZAR en verde**: hay traducción nueva (o aún no la tienes). Púlsalo y listo.
    - **ACTUALIZAR en naranja**: ya tienes la última traducción.
    - **DESINSTALAR**: quita la traducción y deja el juego en **inglés**.
-   - **Avisos**: si el equipo de la traducción publica un aviso (por ejemplo «Trabajando en la versión PTU 5.0»),
-     aparece en un recuadro encima de los canales.
+   - **AVISO**: si el equipo de la traducción publica un aviso (por ejemplo «Trabajando en la versión PTU 5.0»),
+     aparece en una tira naranja encima de los canales, con el texto desplazándose.
 4. Abre Star Citizen como siempre: los textos estarán en español.
 
 Solo tienes que descargar el instalador **una vez**.

@@ -112,10 +112,10 @@ def test_notice_panel(tmp_path, cfg, monkeypatch):
                         game_running=lambda: False, detector=lambda: [])
     w = SimpleWindow(svc)
     w.show()
-    assert _until(lambda: w.notice_frame.isVisible())
+    assert _until(lambda: w.ticker.isVisible())
     assert w.notice_lines[0].channel == "PTU"
     client.notice_bytes = b"# sin aviso\n"
     w.refresh_notice()
-    assert _until(lambda: not w.notice_frame.isVisible())
+    assert _until(lambda: not w.ticker.isVisible())
     _until(lambda: not w.busy)
     w.close()

@@ -67,13 +67,14 @@ como *artifact* descargable de la ejecución, sin crear release.
 
 ## Avisos para los jugadores (`AVISO.txt`)
 
-El archivo `AVISO.txt` de la raíz del repositorio se muestra en el gestor de todos los jugadores, en el recuadro
-**Avisos** (entre el titular y la lista de canales). El gestor lo lee al abrirse y cada 3 minutos mientras está
+El archivo `AVISO.txt` de la raíz del repositorio se muestra en el gestor de todos los jugadores, en una tira
+naranja **AVISO** de una sola línea con desplazamiento horizontal (entre el titular y la lista de canales). El gestor lo lee al abrirse y cada 3 minutos mientras está
 abierto (`notice_refresh_minutes`), con la API de contenidos de GitHub y caché ETag: si no ha cambiado no gasta
 cuota. Puede tardar hasta un par de minutos en llegar por la caché de GitHub.
 
-- Las líneas que empiezan por `#` no se muestran; máximo 4 líneas de 160 caracteres, como texto plano.
-- `[PTU] Trabajando en la versión PTU 5.0` sale con el color del canal PTU (vale cualquier canal).
+- Las líneas que empiezan por `#` no se muestran; máximo 4 líneas de 160 caracteres, como texto plano. Se muestran
+  seguidas, separadas por ◆.
+- `[PTU] Trabajando en la versión PTU 5.0` se muestra como `PTU · Trabajando en la versión PTU 5.0`.
 - Para quitar el aviso, deja solo los comentarios. Si se borra el archivo, el aviso también desaparece.
 - Editarlo **no** publica traducción ni recompila el gestor.
 
