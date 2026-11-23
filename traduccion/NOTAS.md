@@ -1,5 +1,4 @@
-Actualizacion del PTU 5.0 (nuevo global.ini del PTU).
-- PTU: 179 textos nuevos traducidos (recetas de Wikelo para Ironclad, M80, Pitbull, Starlite y Tiburon; armas camufladas Model-K2, Verdict y Hellion; uniformes de People's Alliance, Rayari, Covalex y Shubin; opciones de telemetria y servicios locales).
-- PTU: traducidos unos 200 objetos que seguian como marcador (PH/PLACEHOLDER), y actualizadas las estadisticas de armaduras, armas y accesorios que habian cambiado.
-- PTU: las lineas de reputacion ahora se muestran como "Reputacion otorgada: X puntos".
-- LIVE y HOTFIX: sin cambios (Alpha 4.10.3).
+PTU 5.0 actualizado (23-11-2026): nuevos textos y correcciones; tildes retiradas por la fuente del juego.
+Desde esta versión cada global.ini lleva la línea Personal_Translation_Version, que el gestor 2.0 usa para mostrar la versión instalada y la disponible.
+- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10
+- PTU: Traduccion 0zzyt0 PTU v5.0
