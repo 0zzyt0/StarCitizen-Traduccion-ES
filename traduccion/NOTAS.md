@@ -1,7 +1,6 @@
-Actualizacion PTU 5.0 (23-11-2026): adaptada al nuevo archivo de textos del PTU.
-- Nuevos objetos traducidos: uniformes Ajax de seguridad, gorras, camisetas y armaduras de People's Alliance, Rayari, Covalex y Shubin, diseño "Derivation" del Sabre, caja fuerte y pases de seguridad.
-- Estadisticas actualizadas en armaduras, monos, armas, cargadores y accesorios (por ejemplo LH86: 25 balas y 1200 rpm; FS-9: 75 balas).
-- Textos de misiones revisados para resaltar ubicaciones y paquetes como en el original.
-- Lineas de reputacion con el formato "Reputacion otorgada: X puntos".
-- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10
+Actualizacion PTU 5.0 (24-11-2026): adaptada al nuevo archivo de textos del PTU.
+- Nuevos objetos traducidos: variantes Dark Gray y Metallic Gray de los uniformes Ajax, cascos Field Recon, armaduras Arden-SL y Berkane, pantalones K7, gorra y camiseta; camisa Greenwater Jet Black y chaqueta bomber Best in Show 2956.
+- Nuevas opciones de telemetria del juego (informacion de depuracion y acciones) y la placa conmemorativa de Nyx 1.
+- Estadisticas corregidas en accesorios ArmaMod, punteros laser, recompensas "Tweaker" y cascos Voss; textos revisados de la torreta AAT-34, la Ravager-212, el Centurion/Spartan (plataforma HM6) y varios contratos de Crusader.
+- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10 (sin cambios)
 - PTU: Traduccion 0zzyt0 PTU v5.0
