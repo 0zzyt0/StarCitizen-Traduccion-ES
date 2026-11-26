@@ -1,0 +1,64 @@
+{
+ "schema": 1,
+ "translation_version": "2026.11.26.1",
+ "published_at": "2026-11-26T00:57:22Z",
+ "min_app_version": "1.0.0",
+ "language_folder": "spanish_(spain)",
+ "notes": "Actualizacion PTU 5.0 (26-11-2026): adaptada al nuevo archivo de textos del PTU.\n- Nuevas recompensas de planos del tablon de misiones de Nyx (39 entradas: cargadores, armas, miras, accesorios, dispositivos de mineria y piezas de armadura).\n- Nuevas ediciones de armaduras y ropa ya con nombre y descripcion reales: Subdue, Wager, Peril, Billet, Knave, Gloom, Averse, Dragoon, Convoy, Malign, Bravo, Highlife, Cutthroat y Bonebreaker (Field Recon, FBL-8a, ADP, PAB-1, Monde, Antium, Defiance, DustUp, MacFlex, Calico, Creese, Threshold, Miasma y mas).\n- Contratos del Bounty Hunters Guild: el nombre del objetivo y su ultima ubicacion conocida ahora aparecen resaltados, como en el original.\n- LIVE y HOTFIX: Traduccion 0zzyt0 LIVE v4.10 (sin cambios)\n- PTU: Traduccion 0zzyt0 PTU v5.0",
+ "channels": {
+  "LIVE": {
+   "asset": "global_LIVE.ini",
+   "size": 12045210,
+   "sha256": "5a2a07de48595ea3dcd7cc1e4910335ce2ac3b68c14a31b550825f776ce47364",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_LIVE.png",
+     "size": 447231,
+     "sha256": "f6bf1abecbf14c0855eeb20e9707e5695eb8d8da4175280fbc809005fee6c1f5",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "PTU": {
+   "asset": "global_PTU.ini",
+   "size": 12206528,
+   "sha256": "cae830163eb44ab947c8661e1e208098bc99b6ef6443c9573ed949f8a8941b47",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "5.0"
+   ],
+   "label": "Traduccion 0zzyt0 PTU v5.0",
+   "extras": {
+    "splash": {
+     "asset": "splash_PTU.png",
+     "size": 402969,
+     "sha256": "6dd8b98be0775a42904d7c7daf1f65653ab6d2b67e1dffca73a80bd2c24c56c9",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  },
+  "HOTFIX": {
+   "asset": "global_HOTFIX.ini",
+   "size": 12045210,
+   "sha256": "5a2a07de48595ea3dcd7cc1e4910335ce2ac3b68c14a31b550825f776ce47364",
+   "target": "data/Localization/spanish_(spain)/global.ini",
+   "game_versions": [
+    "4.10"
+   ],
+   "label": "Traduccion 0zzyt0 LIVE v4.10",
+   "extras": {
+    "splash": {
+     "asset": "splash_HOTFIX.png",
+     "size": 450989,
+     "sha256": "73ad8d194865d9f07b173bbd6d462d0f8fe35fffa9e2b11aa87cc3d369da3cc7",
+     "target": "EasyAntiCheat/SplashScreen.png"
+    }
+   }
+  }
+ }
+}
